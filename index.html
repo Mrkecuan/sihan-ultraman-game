@@ -276,19 +276,35 @@ function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } cat
 /* ---------- 英雄配置 ---------- */
 const HEROES = {
   orb:  { name: "欧布原生奥特曼", rarity: "传说", rc: "legend", atk: 130, hp: 1100, spd: 1.05,
-          ult: "超级龙卷风", ultType: "tornado",
+          ult: "超级双龙卷风", ultType: "tornado2", style: "orb",
           c: { body: "#e8e8ee", main: "#d81f2a", sub: "#8a8f9c", line: "#b31220", gem: "#39d0ff", eye: "#ffe95c" },
           cost: { gold: 0 } },
   tiga: { name: "迪迦奥特曼", rarity: "史诗", rc: "epic", atk: 110, hp: 1250, spd: 1.0,
-          ult: "哉佩利敖光线", ultType: "beam",
+          ult: "哉佩利敖光线", ultType: "beam", style: "tiga",
           c: { body: "#e8e8ee", main: "#7a3cc8", sub: "#c8323c", line: "#5a2a99", gem: "#fff", eye: "#ffe95c" },
           cost: { gold: 1500 } },
+  grigio:{ name: "格丽乔奥特曼", rarity: "史诗", rc: "epic", atk: 105, hp: 1300, spd: 1.1,
+          ult: "格丽乔光弹", ultType: "burst", style: "grigio",
+          c: { body: "#f2eef2", main: "#e8506e", sub: "#c8323c", line: "#c23a55", gem: "#8ef0ff", eye: "#ffe95c" },
+          cost: { gold: 2200 } },
   zero: { name: "赛罗奥特曼", rarity: "传说", rc: "legend", atk: 145, hp: 1000, spd: 1.15,
-          ult: "集束光冲击波", ultType: "burst",
+          ult: "集束光冲击波", ultType: "burst", style: "zero",
           c: { body: "#dfe4ee", main: "#2255dd", sub: "#d02030", line: "#1a3fa8", gem: "#7cf5d0", eye: "#ffe95c" },
           cost: { gold: 3000 } },
+  trigger:{ name: "托雷基亚奥特曼", rarity: "传说", rc: "legend", atk: 155, hp: 1050, spd: 1.12,
+          ult: "黑暗谢里姆光线", ultType: "beam", style: "trigger",
+          c: { body: "#2b2b36", main: "#c9a227", sub: "#7a3cc8", line: "#8a6a10", gem: "#c06cf0", eye: "#ffb84a" },
+          cost: { gold: 4200 } },
+  belial:{ name: "贝利亚奥特曼", rarity: "神级", rc: "god", atk: 175, hp: 1150, spd: 1.08,
+          ult: "死亡爆嚎光线", ultType: "beam", style: "belial",
+          c: { body: "#26242c", main: "#d02030", sub: "#5a5f6e", line: "#8a1020", gem: "#ff4040", eye: "#ffd75a" },
+          cost: { gems: 100 } },
+  zeroInf:{ name: "赛罗无限奥特曼", rarity: "神级", rc: "god", atk: 185, hp: 1250, spd: 1.2,
+          ult: "无限流星斩", ultType: "lightning", style: "zeroinf",
+          c: { body: "#cfe6ff", main: "#3a7bff", sub: "#8ad4ff", line: "#2255cc", gem: "#aef4ff", eye: "#7cf5ff" },
+          cost: { gems: 160 } },
   noa:  { name: "诺亚奥特曼", rarity: "神级", rc: "god", atk: 170, hp: 1350, spd: 1.1,
-          ult: "雷霆闪光", ultType: "lightning",
+          ult: "雷霆闪光", ultType: "lightning", style: "noa",
           c: { body: "#e5e9f4", main: "#9aa4bd", sub: "#c02735", line: "#7a8299", gem: "#ffd75a", eye: "#aef4ff" },
           cost: { gems: 120 } }
 };
@@ -343,42 +359,106 @@ function powerVal() { const st = heroStats(); return Math.round(st.atk * 12 + st
   box.innerHTML = html;
 })();
 
-/* ---------- 画奥特曼 (纯 Canvas 矢量) ---------- */
+/* ---------- 画奥特曼 (纯 Canvas 矢量 · 拟真版) ---------- */
 function drawUltra(ctx, hero, x, y, s, t, pose) {
-  // s = 身高像素; pose: idle / run / atk / hurt / win
+  // s = 身高像素; pose: idle / run / atk / hurt / win / ult
   const c = hero.c; const u = s / 100; // 单位
+  const style = hero.style || "orb";
   ctx.save(); ctx.translate(x, y);
   const bob = pose === "idle" ? Math.sin(t * 2.2) * 2 * u : 0;
   const runp = pose === "run" ? Math.sin(t * 14) : 0;
   ctx.translate(0, bob);
   ctx.lineJoin = "round"; ctx.lineCap = "round";
-  // 腿
-  ctx.strokeStyle = c.body; ctx.lineWidth = 9 * u;
+
+  /* ===== 腿部（银色主体 + 主色护腿纹） ===== */
+  ctx.strokeStyle = c.body; ctx.lineWidth = 9.5 * u;
   ctx.beginPath(); ctx.moveTo(-6 * u, -34 * u); ctx.lineTo(-8 * u + runp * 7 * u, -14 * u); ctx.lineTo(-9 * u + runp * 10 * u, 0); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(6 * u, -34 * u); ctx.lineTo(8 * u - runp * 7 * u, -14 * u); ctx.lineTo(9 * u - runp * 10 * u, 0); ctx.stroke();
-  // 红色腿纹
+  // 腿部主色条纹
   ctx.strokeStyle = c.main; ctx.lineWidth = 4.5 * u;
   ctx.beginPath(); ctx.moveTo(-6 * u, -30 * u); ctx.lineTo(-8 * u + runp * 6 * u, -16 * u); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(6 * u, -30 * u); ctx.lineTo(8 * u - runp * 6 * u, -16 * u); ctx.stroke();
-  // 躯干
-  const grd = ctx.createLinearGradient(0, -78 * u, 0, -30 * u);
-  grd.addColorStop(0, c.body); grd.addColorStop(1, "#cfd3dd");
+  // 脚部(短靴)
+  ctx.strokeStyle = shade2(c.main, -15); ctx.lineWidth = 5 * u;
+  ctx.beginPath(); ctx.moveTo(-9 * u + runp * 10 * u, -2 * u); ctx.lineTo(-11 * u + runp * 10 * u, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(9 * u - runp * 10 * u, -2 * u); ctx.lineTo(11 * u - runp * 10 * u, 0); ctx.stroke();
+
+  /* ===== 躯干（金属渐变 + 高光） ===== */
+  const grd = ctx.createLinearGradient(-14 * u, -78 * u, 14 * u, -30 * u);
+  grd.addColorStop(0, lighten(c.body, 18)); grd.addColorStop(0.45, c.body); grd.addColorStop(1, shade2(c.body, -22));
   ctx.fillStyle = grd;
   ctx.beginPath();
-  ctx.moveTo(-13 * u, -72 * u); ctx.quadraticCurveTo(-17 * u, -55 * u, -10 * u, -32 * u);
-  ctx.lineTo(10 * u, -32 * u); ctx.quadraticCurveTo(17 * u, -55 * u, 13 * u, -72 * u);
+  ctx.moveTo(-13.5 * u, -72 * u); ctx.quadraticCurveTo(-17.5 * u, -55 * u, -10 * u, -32 * u);
+  ctx.lineTo(10 * u, -32 * u); ctx.quadraticCurveTo(17.5 * u, -55 * u, 13.5 * u, -72 * u);
   ctx.closePath(); ctx.fill();
-  // 主色胸甲纹路
-  ctx.fillStyle = c.main;
-  ctx.beginPath(); ctx.moveTo(-13 * u, -72 * u); ctx.lineTo(13 * u, -72 * u);
-  ctx.lineTo(9 * u, -58 * u); ctx.lineTo(0, -50 * u); ctx.lineTo(-9 * u, -58 * u); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = c.sub;
-  ctx.beginPath(); ctx.moveTo(-10 * u, -32 * u); ctx.lineTo(10 * u, -32 * u); ctx.lineTo(8 * u, -40 * u); ctx.lineTo(-8 * u, -40 * u); ctx.closePath(); ctx.fill();
-  // 彩色计时器
-  ctx.fillStyle = c.gem; ctx.shadowColor = c.gem; ctx.shadowBlur = 10 * u;
-  ctx.beginPath(); ctx.ellipse(0, -56 * u, 4.2 * u, 5 * u, 0, 0, Math.PI * 2); ctx.fill();
+
+  /* ===== 每位奥特曼独有体纹 ===== */
+  if (style === "orb") {
+    // 欧布：红银交错斜纹 + 中央V型
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(-13.5 * u, -72 * u); ctx.lineTo(13.5 * u, -72 * u);
+    ctx.lineTo(9 * u, -58 * u); ctx.lineTo(0, -48 * u); ctx.lineTo(-9 * u, -58 * u); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = c.main; ctx.lineWidth = 3 * u;
+    ctx.beginPath(); ctx.moveTo(-14 * u, -52 * u); ctx.quadraticCurveTo(0, -44 * u, 14 * u, -52 * u); ctx.stroke();
+    ctx.fillStyle = c.sub;
+    ctx.beginPath(); ctx.moveTo(-10 * u, -32 * u); ctx.lineTo(10 * u, -32 * u); ctx.lineTo(8 * u, -39 * u); ctx.lineTo(-8 * u, -39 * u); ctx.closePath(); ctx.fill();
+  } else if (style === "tiga") {
+    // 迪迦：紫红复合大V + 银色躯干
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(-13.5 * u, -72 * u); ctx.lineTo(-4 * u, -72 * u); ctx.lineTo(0, -56 * u); ctx.lineTo(4 * u, -72 * u); ctx.lineTo(13.5 * u, -72 * u); ctx.lineTo(6 * u, -44 * u); ctx.lineTo(-6 * u, -44 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = c.sub;
+    ctx.beginPath(); ctx.moveTo(-6 * u, -44 * u); ctx.lineTo(6 * u, -44 * u); ctx.lineTo(3 * u, -34 * u); ctx.lineTo(-3 * u, -34 * u); ctx.closePath(); ctx.fill();
+  } else if (style === "grigio") {
+    // 格丽乔：粉红流线曲纹
+    ctx.strokeStyle = c.main; ctx.lineWidth = 5 * u;
+    ctx.beginPath(); ctx.moveTo(-13 * u, -70 * u); ctx.quadraticCurveTo(0, -60 * u, 13 * u, -70 * u); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-12 * u, -50 * u); ctx.quadraticCurveTo(0, -42 * u, 12 * u, -50 * u); ctx.stroke();
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(-10 * u, -32 * u); ctx.lineTo(10 * u, -32 * u); ctx.lineTo(7 * u, -38 * u); ctx.lineTo(-7 * u, -38 * u); ctx.closePath(); ctx.fill();
+  } else if (style === "zero" || style === "zeroinf") {
+    // 赛罗：蓝色宽肩甲 + 红色纵条
+    ctx.fillStyle = c.main;
+    ctx.fillRect(-14 * u, -73 * u, 9 * u, 12 * u); ctx.fillRect(5 * u, -73 * u, 9 * u, 12 * u);
+    ctx.fillStyle = c.sub;
+    ctx.beginPath(); ctx.moveTo(-3 * u, -72 * u); ctx.lineTo(3 * u, -72 * u); ctx.lineTo(2 * u, -34 * u); ctx.lineTo(-2 * u, -34 * u); ctx.closePath(); ctx.fill();
+    if (style === "zeroinf") { // 无限形态: 附加光甲辉光
+      ctx.strokeStyle = "rgba(160,220,255,.8)"; ctx.lineWidth = 2.5 * u;
+      ctx.shadowColor = "#8cf"; ctx.shadowBlur = 10 * u;
+      ctx.beginPath(); ctx.moveTo(-14 * u, -61 * u); ctx.lineTo(-8 * u, -50 * u); ctx.moveTo(14 * u, -61 * u); ctx.lineTo(8 * u, -50 * u); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  } else if (style === "trigger") {
+    // 托雷基亚：黑金流线纹
+    ctx.strokeStyle = c.main; ctx.lineWidth = 4 * u;
+    ctx.beginPath(); ctx.moveTo(-13 * u, -72 * u); ctx.quadraticCurveTo(-4 * u, -56 * u, -8 * u, -34 * u); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(13 * u, -72 * u); ctx.quadraticCurveTo(4 * u, -56 * u, 8 * u, -34 * u); ctx.stroke();
+    ctx.strokeStyle = c.sub; ctx.lineWidth = 2.5 * u;
+    ctx.beginPath(); ctx.moveTo(0, -70 * u); ctx.lineTo(0, -46 * u); ctx.stroke();
+  } else if (style === "belial") {
+    // 贝利亚：黑躯干红色肋骨纹
+    ctx.strokeStyle = c.main; ctx.lineWidth = 3.5 * u;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath(); ctx.moveTo(-11 * u, (-66 + i * 9) * u); ctx.quadraticCurveTo(0, (-60 + i * 9) * u, 11 * u, (-66 + i * 9) * u); ctx.stroke();
+    }
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(0, -72 * u); ctx.lineTo(4 * u, -62 * u); ctx.lineTo(0, -52 * u); ctx.lineTo(-4 * u, -62 * u); ctx.closePath(); ctx.fill();
+  } else { // noa 等
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(-13.5 * u, -72 * u); ctx.lineTo(13.5 * u, -72 * u);
+    ctx.lineTo(9 * u, -58 * u); ctx.lineTo(0, -50 * u); ctx.lineTo(-9 * u, -58 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = c.sub;
+    ctx.beginPath(); ctx.moveTo(-10 * u, -32 * u); ctx.lineTo(10 * u, -32 * u); ctx.lineTo(8 * u, -40 * u); ctx.lineTo(-8 * u, -40 * u); ctx.closePath(); ctx.fill();
+  }
+
+  /* ===== 彩色计时器（呼吸发光） ===== */
+  const gemPulse = 0.7 + Math.sin(t * 3.5) * 0.3;
+  ctx.fillStyle = c.gem; ctx.shadowColor = c.gem; ctx.shadowBlur = 12 * u * gemPulse;
+  ctx.beginPath(); ctx.ellipse(0, -56 * u, 3.8 * u, 4.6 * u, 0, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
-  // 手臂
+  ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 1.2 * u;
+  ctx.beginPath(); ctx.ellipse(0, -56 * u, 3.8 * u, 4.6 * u, 0, 0, Math.PI * 2); ctx.stroke();
+
+  /* ===== 手臂 ===== */
   ctx.strokeStyle = c.body; ctx.lineWidth = 7.5 * u;
   if (pose === "atk") {
     ctx.beginPath(); ctx.moveTo(-12 * u, -66 * u); ctx.lineTo(-20 * u, -55 * u); ctx.lineTo(-14 * u, -46 * u); ctx.stroke();
@@ -389,7 +469,7 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
     ctx.beginPath(); ctx.moveTo(-12 * u, -66 * u); ctx.lineTo(-20 * u, -80 * u); ctx.lineTo(-16 * u, -94 * u); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(12 * u, -66 * u); ctx.lineTo(20 * u, -80 * u); ctx.lineTo(16 * u, -94 * u); ctx.stroke();
   } else if (pose === "ult") {
-    // 十字手势
+    // 十字/L字发招手势
     ctx.beginPath(); ctx.moveTo(-12 * u, -64 * u); ctx.lineTo(-6 * u, -58 * u); ctx.lineTo(4 * u, -66 * u); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(12 * u, -66 * u); ctx.lineTo(4 * u, -56 * u); ctx.lineTo(-2 * u, -46 * u); ctx.stroke();
   } else {
@@ -397,22 +477,94 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
     ctx.beginPath(); ctx.moveTo(-12 * u, -66 * u); ctx.lineTo(-16 * u - sw, -52 * u); ctx.lineTo(-14 * u - sw, -40 * u); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(12 * u, -66 * u); ctx.lineTo(16 * u + sw, -52 * u); ctx.lineTo(14 * u + sw, -40 * u); ctx.stroke();
   }
-  // 主色臂纹
-  ctx.strokeStyle = c.main; ctx.lineWidth = 3.5 * u;
-  ctx.beginPath(); ctx.moveTo(-12 * u, -64 * u); ctx.lineTo(-15 * u, -56 * u); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(12 * u, -64 * u); ctx.lineTo(15 * u, -56 * u); ctx.stroke();
-  // 头
-  ctx.fillStyle = "#dfe3ec";
-  ctx.beginPath(); ctx.ellipse(0, -82 * u, 8.5 * u, 10.5 * u, 0, 0, Math.PI * 2); ctx.fill();
-  // 头冠
-  ctx.fillStyle = c.sub;
-  ctx.beginPath(); ctx.moveTo(0, -95 * u); ctx.lineTo(-2.6 * u, -84 * u); ctx.lineTo(2.6 * u, -84 * u); ctx.closePath(); ctx.fill();
-  // 眼睛 (发光)
-  ctx.fillStyle = c.eye; ctx.shadowColor = c.eye; ctx.shadowBlur = 8 * u;
-  ctx.beginPath(); ctx.ellipse(-4.2 * u, -83 * u, 3.1 * u, 2.2 * u, -0.25, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(4.2 * u, -83 * u, 3.1 * u, 2.2 * u, 0.25, 0, Math.PI * 2); ctx.fill();
+  // 护腕
+  ctx.strokeStyle = c.main; ctx.lineWidth = 4 * u;
+  ctx.beginPath(); ctx.moveTo(-15 * u, -46 * u); ctx.lineTo(-14 * u, -42 * u); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(15 * u, -46 * u); ctx.lineTo(14 * u, -42 * u); ctx.stroke();
+  // 贝利亚利爪
+  if (style === "belial" && pose !== "ult") {
+    ctx.strokeStyle = "#ddd"; ctx.lineWidth = 1.6 * u;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.moveTo(14 * u, -40 * u); ctx.lineTo((17 + i * 2) * u, -35 * u); ctx.stroke();
+    }
+  }
+
+  /* ===== 头部（银色金属 + 拟真轮廓） ===== */
+  const hg = ctx.createLinearGradient(-9 * u, -93 * u, 9 * u, -72 * u);
+  hg.addColorStop(0, "#f4f6fa"); hg.addColorStop(0.5, "#dfe3ec"); hg.addColorStop(1, "#aab2c2");
+  ctx.fillStyle = style === "belial" ? "#3a3742" : (style === "trigger" ? "#33303c" : hg);
+  ctx.beginPath();
+  ctx.moveTo(-8 * u, -80 * u);
+  ctx.quadraticCurveTo(-9.5 * u, -88 * u, -5.5 * u, -92.5 * u);
+  ctx.quadraticCurveTo(0, -95 * u, 5.5 * u, -92.5 * u);
+  ctx.quadraticCurveTo(9.5 * u, -88 * u, 8 * u, -80 * u);
+  ctx.quadraticCurveTo(6.5 * u, -73.5 * u, 0, -72.5 * u);
+  ctx.quadraticCurveTo(-6.5 * u, -73.5 * u, -8 * u, -80 * u);
+  ctx.closePath(); ctx.fill();
+  // 面部中线颚部
+  ctx.strokeStyle = "rgba(90,100,120,.5)"; ctx.lineWidth = 1 * u;
+  ctx.beginPath(); ctx.moveTo(0, -78 * u); ctx.lineTo(0, -73.5 * u); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-4 * u, -75.5 * u); ctx.quadraticCurveTo(0, -73 * u, 4 * u, -75.5 * u); ctx.stroke();
+
+  /* ===== 头冠 / 头镖（角色专属） ===== */
+  if (style === "zero" || style === "zeroinf") {
+    // 赛罗头镖(斯拉格光刃) + 蓝冠
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(0, -96 * u); ctx.lineTo(-2.4 * u, -85 * u); ctx.lineTo(2.4 * u, -85 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#e8ecf4";
+    ctx.beginPath(); ctx.moveTo(-6 * u, -90 * u); ctx.lineTo(-16 * u, -96 * u); ctx.lineTo(-7.5 * u, -84 * u); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(6 * u, -90 * u); ctx.lineTo(16 * u, -96 * u); ctx.lineTo(7.5 * u, -84 * u); ctx.closePath(); ctx.fill();
+  } else if (style === "belial") {
+    // 贝利亚弯角冠
+    ctx.fillStyle = "#4a4652";
+    ctx.beginPath(); ctx.moveTo(-3 * u, -93 * u); ctx.quadraticCurveTo(-9 * u, -102 * u, -13 * u, -98 * u); ctx.lineTo(-6 * u, -89 * u); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(3 * u, -93 * u); ctx.quadraticCurveTo(9 * u, -102 * u, 13 * u, -98 * u); ctx.lineTo(6 * u, -89 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(0, -97 * u); ctx.lineTo(-2 * u, -86 * u); ctx.lineTo(2 * u, -86 * u); ctx.closePath(); ctx.fill();
+  } else if (style === "trigger") {
+    // 托雷基亚金色三叉冠
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(0, -99 * u); ctx.lineTo(-2.2 * u, -85 * u); ctx.lineTo(2.2 * u, -85 * u); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-5 * u, -92 * u); ctx.lineTo(-10 * u, -97 * u); ctx.lineTo(-5.5 * u, -85 * u); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(5 * u, -92 * u); ctx.lineTo(10 * u, -97 * u); ctx.lineTo(5.5 * u, -85 * u); ctx.closePath(); ctx.fill();
+  } else if (style === "grigio") {
+    // 格丽乔弧形头冠
+    ctx.fillStyle = c.main;
+    ctx.beginPath(); ctx.moveTo(0, -95.5 * u); ctx.quadraticCurveTo(-1.8 * u, -88 * u, -1.5 * u, -85 * u); ctx.lineTo(1.5 * u, -85 * u); ctx.quadraticCurveTo(1.8 * u, -88 * u, 0, -95.5 * u); ctx.closePath(); ctx.fill();
+  } else {
+    // 默认短冠 (欧布/迪迦/诺亚)
+    ctx.fillStyle = style === "orb" ? c.main : c.sub;
+    ctx.beginPath(); ctx.moveTo(0, -96 * u); ctx.lineTo(-2.6 * u, -84.5 * u); ctx.lineTo(2.6 * u, -84.5 * u); ctx.closePath(); ctx.fill();
+  }
+
+  /* ===== 眼睛（椭圆切角发光眼） ===== */
+  const eyeGlow = 0.75 + Math.sin(t * 4) * 0.25;
+  ctx.fillStyle = c.eye; ctx.shadowColor = c.eye; ctx.shadowBlur = 9 * u * eyeGlow;
+  if (style === "belial") {
+    // 贝利亚斜吊眼
+    ctx.beginPath(); ctx.moveTo(-7.5 * u, -85 * u); ctx.quadraticCurveTo(-3 * u, -88 * u, -1.5 * u, -83.5 * u); ctx.quadraticCurveTo(-4.5 * u, -81.5 * u, -7.5 * u, -85 * u); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(7.5 * u, -85 * u); ctx.quadraticCurveTo(3 * u, -88 * u, 1.5 * u, -83.5 * u); ctx.quadraticCurveTo(4.5 * u, -81.5 * u, 7.5 * u, -85 * u); ctx.closePath(); ctx.fill();
+  } else {
+    // 标准椭圆大眼
+    ctx.beginPath(); ctx.ellipse(-4.4 * u, -84 * u, 3.4 * u, 2.5 * u, -0.28, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(4.4 * u, -84 * u, 3.4 * u, 2.5 * u, 0.28, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.shadowBlur = 0;
+  // 眼部高光
+  if (style !== "belial") {
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    ctx.beginPath(); ctx.ellipse(-5 * u, -84.8 * u, 1 * u, 0.7 * u, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(3.8 * u, -84.8 * u, 1 * u, 0.7 * u, 0, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
+}
+function lighten(hex, amt) { return shade2(hex, amt); }
+function shade2(hex, amt) {
+  if (hex[0] !== "#") return hex;
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) + amt, g = ((n >> 8) & 255) + amt, b = (n & 255) + amt;
+  r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
+  return `rgb(${r},${g},${b})`;
 }
 
 /* ---------- 画怪兽 ---------- */
@@ -849,7 +1001,11 @@ function doUlt() {
   const b = $("ultBanner"); b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
   B.shake = 0.7; B.hitstop = 0.3;
   const dmg = P.atk * 1.1;
-  if (h.ultType === "tornado") {
+  if (h.ultType === "tornado2") {
+    // 超级双龙卷风：两股龙卷风一前一后双向席卷全场
+    B.fx.push({ type: "tornado", x: P.x + P.face * 40, y: P.y, vx: P.face * 270, dmg, t: 0, life: 2.6, tick: 0 });
+    B.fx.push({ type: "tornado", x: P.x - P.face * 40, y: P.y, vx: -P.face * 270, dmg, t: 0, life: 2.6, tick: 0.09 });
+  } else if (h.ultType === "tornado") {
     B.fx.push({ type: "tornado", x: P.x + P.face * 40, y: P.y, vx: P.face * 260, dmg, t: 0, life: 2.6, tick: 0 });
   } else if (h.ultType === "beam") {
     B.projs.push({ x: P.x + P.face * 50, y: P.y - 60, vx: P.face * 900, dmg: dmg * 3, life: 1.4, hit: new Set() });
