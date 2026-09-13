@@ -6,8 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>奥特曼英雄 · 思翰版</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
-  html,body { width:100%; height:100%; overflow:hidden; background:#05060f; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;
+      -webkit-touch-callout:none; touch-action:manipulation; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#05060f; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+      overscroll-behavior:none; -webkit-text-size-adjust:100%; position:fixed; }
   #app { position:fixed; inset:0; overflow:hidden; }
   .screen { position:absolute; inset:0; display:none; flex-direction:column; }
   .screen.active { display:flex; }
@@ -88,13 +90,13 @@
 
   /* 关卡 */
   .stage-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .stage-card { position:relative; border-radius:14px; border:2px solid #35509f; background:linear-gradient(180deg,#14235e,#0d1030); padding:12px 10px; text-align:center; }
+  .stage-card { position:relative; border-radius:14px; border:2px solid #35509f; background:linear-gradient(180deg,#14235e,#0d1030); padding:10px 8px 10px; text-align:center; }
   .stage-card.locked { filter:grayscale(.9) brightness(.55); }
-  .stage-card .sn { color:#8fb8ff; font-size:11px; font-weight:700; }
-  .stage-card .mn { color:#fff; font-size:15px; font-weight:900; margin:3px 0 1px; }
-  .stage-card .ml { color:#ff9d6b; font-size:11px; font-weight:700; }
-  .stage-card .stars { color:#ffd54a; font-size:14px; letter-spacing:2px; margin-top:4px; }
-  .stage-card .diff { font-size:9px; margin-top:3px; letter-spacing:-1px; }
+  .stage-card .sn { color:#8fb8ff; font-size:11px; font-weight:700; line-height:1.3; }
+  .stage-card .mn { color:#fff; font-size:15px; font-weight:900; margin:4px 0 2px; line-height:1.2; }
+  .stage-card .ml { color:#ff9d6b; font-size:11px; font-weight:700; line-height:1.3; }
+  .stage-card .diff { font-size:9px; margin-top:4px; letter-spacing:-1px; line-height:1.2; }
+  .stage-card .stars { color:#ffd54a; font-size:13px; letter-spacing:1px; margin-top:5px; line-height:1.2; }
   .stage-card.bossgiant { border-color:#f0f; background:linear-gradient(180deg,#4a0a3a,#1a0520); box-shadow:0 0 14px #f0f5; }
   .stage-card .go { margin-top:8px; display:inline-block; padding:6px 22px; border-radius:10px; background:linear-gradient(180deg,#ffb62e,#e0700c); border:1px solid #ffe08a; color:#fff; font-weight:900; font-size:13px; }
   .stage-card .go:active { transform:scale(.94); }
@@ -166,8 +168,10 @@
   @media (orientation: landscape) {
     /* 大厅：横屏时压缩上下留白，按钮收窄居中 */
     .bottombar { max-width:520px; margin:0 auto; width:100%; }
-    #lobbyHeroCv { width:min(40vw,300px); height:min(72vh,380px); }
-    .power { bottom:70px; }
+    #lobbyHeroCv { width:min(36vw,260px); height:min(52vh,290px); }
+    .power { bottom:56px; font-size:13px; }
+    .heroNameTag .n { font-size:15px; }
+    .topbar { padding-top:calc(env(safe-area-inset-top,0px) + 5px); }
     /* 列表页多列布局 */
     .hero-grid { grid-template-columns:repeat(4,1fr); }
     .hero-card canvas { height:120px; }
@@ -179,6 +183,18 @@
     .btns { right:max(16px, env(safe-area-inset-right,0px)); }
     .hud-top { left:max(8px, env(safe-area-inset-left,0px)); right:max(8px, env(safe-area-inset-right,0px)); }
     .pausebtn { right:max(10px, env(safe-area-inset-right,0px)); }
+  }
+  /* 矮屏横屏(手机横放, 高度<420px): 进一步压缩, 保证按钮不被裁切 */
+  @media (orientation: landscape) and (max-height: 430px) {
+    #lobbyHeroCv { height:min(48vh, 240px) !important; }
+    .topbar { padding-top:calc(env(safe-area-inset-top,0px) + 3px); padding-bottom:3px; }
+    .avatar .face { width:28px; height:28px; font-size:15px; }
+    .menu-btn { padding:6px 0 5px; font-size:12px; }
+    .menu-btn .ic { font-size:16px; }
+    .heroNameTag .n { font-size:13px; }
+    .power { bottom:48px; font-size:12px; }
+    .page-head { padding-top:calc(env(safe-area-inset-top,0px) + 5px); padding-bottom:5px; }
+    .hero-card canvas { height:100px; }
   }
 
   /* 大招演出字幕 */
@@ -300,6 +316,43 @@ try { S = Object.assign({}, DEF, JSON.parse(localStorage.getItem(SAVE_KEY) || "{
 catch (e) { S = { ...DEF }; }
 S.eq = Object.assign({}, DEF.eq, S.eq || {});
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
+
+/* ---------- 自适应画质引擎 ---------- */
+/* 根据设备能力自动分档，低端机降画质保帧率，高端机全开特效 */
+const Q = (function () {
+  // 内存/核心数做基础判断
+  const mem = navigator.deviceMemory || navigator.hardwareConcurrency || 4;
+  const cores = navigator.hardwareConcurrency || 4;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  // 低端判定: 核心少 或 内存小
+  let tier = "high";
+  if (cores <= 4 || mem <= 2) tier = "mid";
+  if (cores <= 2 || mem <= 1) tier = "low";
+  const cfg = {
+    high: { dprCap: 2,   glow: true,  particles: 22, bgDetail: true,  shadows: true,  maxDpr: 2 },
+    mid:  { dprCap: 1.5, glow: true,  particles: 12, bgDetail: true,  shadows: false, maxDpr: 1.5 },
+    low:  { dprCap: 1,   glow: false, particles: 6,  bgDetail: false, shadows: false, maxDpr: 1 }
+  }[tier];
+  const q = Object.assign({ tier, isIOS, isAndroid, fps: 60, _frames: 0, _t0: performance.now(), auto: true }, cfg);
+  // 实时帧率监测：掉帧则自动降档
+  q.sample = function (now) {
+    q._frames++;
+    const el = now - q._t0;
+    if (el >= 2000) {
+      q.fps = Math.round(q._frames * 1000 / el);
+      q._frames = 0; q._t0 = now;
+      if (q.auto) {
+        // 连续低帧率 → 降档
+        if (q.fps < 40 && q.tier === "high") { q.tier = "mid"; q.dprCap = 1.5; q.particles = 12; resizeCv(); }
+        else if (q.fps < 28 && q.tier === "mid") { q.tier = "low"; q.dprCap = 1; q.particles = 6; q.glow = false; resizeCv(); }
+      }
+    }
+  };
+  return q;
+})();
+function glowOn() { return Q.glow; }   // 是否允许 shadowBlur 特效
 
 /* =================================================================
    音效引擎 (WebAudio 合成 · 零音频文件)
@@ -551,7 +604,7 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
     ctx.fillStyle = c.sub;
     ctx.beginPath(); ctx.moveTo(-2.6 * u, -70 * u); ctx.lineTo(2.6 * u, -70 * u); ctx.lineTo(2 * u, -35 * u); ctx.lineTo(-2 * u, -35 * u); ctx.closePath(); ctx.fill();
     if (style === "zeroinf") {
-      ctx.strokeStyle = "rgba(150,225,255,.85)"; ctx.lineWidth = 2 * u; ctx.shadowColor = "#8cf"; ctx.shadowBlur = 9 * u;
+      ctx.strokeStyle = "rgba(150,225,255,.85)"; ctx.lineWidth = 2 * u; ctx.shadowColor = "#8cf"; ctx.shadowBlur = glowOn() ? (9 * u) : 0;
       ctx.beginPath(); ctx.moveTo(-12 * u, -60 * u); ctx.lineTo(-8 * u, -50 * u); ctx.moveTo(12 * u, -60 * u); ctx.lineTo(8 * u, -50 * u); ctx.stroke();
       ctx.shadowBlur = 0;
     }
@@ -585,7 +638,7 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
   const gemCol = hero._gemBlue ? "#39d0ff" : c.gem;
   const ring = ctx.createRadialGradient(cgx, cgy, 1 * u, cgx, cgy, 6 * u);
   ring.addColorStop(0, "#ffffff"); ring.addColorStop(0.35, gemCol); ring.addColorStop(1, shade2(gemCol, -30));
-  ctx.fillStyle = ring; ctx.shadowColor = gemCol; ctx.shadowBlur = 14 * u * gp;
+  ctx.fillStyle = ring; ctx.shadowColor = gemCol; ctx.shadowBlur = glowOn() ? (14 * u * gp) : 0;
   ctx.beginPath(); ctx.arc(cgx, cgy, 4.2 * u, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 1.1 * u;
@@ -594,15 +647,15 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
   if (hero._gemBlue) {
     ctx.globalAlpha = 0.5 + Math.sin(t * 6) * 0.25;
     ctx.strokeStyle = "#5cd6ff"; ctx.lineWidth = 1.6 * u;
-    ctx.shadowColor = "#39d0ff"; ctx.shadowBlur = 12 * u;
+    ctx.shadowColor = "#39d0ff"; ctx.shadowBlur = glowOn() ? (12 * u) : 0;
     ctx.beginPath(); ctx.arc(cgx, cgy, 6.4 * u, 0, Math.PI * 2); ctx.stroke();
     ctx.shadowBlur = 0; ctx.globalAlpha = 1;
   }
 
   /* ============ 超级战剑(变大的巨剑) ============ */
   const swordLv = (S && S.eq && S.eq.weapon) || 1;
-  const swLen = 62 + swordLv * 7;          // 随等级变长
-  const swW = 5.4 + swordLv * 0.55;        // 随等级变宽
+  const swLen = 56 + swordLv * 5.5;        // 随等级变长(相对身高)
+  const swW = 5.0 + swordLv * 0.45;        // 随等级变宽
   const hold = pose === "atk" ? 0.55 : (pose === "ult" ? -0.35 : 0.2);
   ctx.save();
   ctx.translate(11 * u, -52 * u);
@@ -612,7 +665,7 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
   bg2.addColorStop(0, "#ffffff"); bg2.addColorStop(0.25, "#dff0ff");
   bg2.addColorStop(0.6, "#9dc4e8"); bg2.addColorStop(1, "#6a8cb8");
   ctx.fillStyle = bg2;
-  ctx.shadowColor = "#8ef"; ctx.shadowBlur = 10 * u;
+  ctx.shadowColor = "#8ef"; ctx.shadowBlur = glowOn() ? (10 * u) : 0;
   ctx.beginPath();
   ctx.moveTo(0, -swLen * u);
   ctx.lineTo(swW * u, -swLen * 0.72 * u);
@@ -638,7 +691,7 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
   if (pose === "atk") {
     ctx.globalAlpha = 0.85;
     ctx.strokeStyle = "#cdf3ff"; ctx.lineWidth = 3 * u;
-    ctx.shadowColor = "#6cf"; ctx.shadowBlur = 18 * u;
+    ctx.shadowColor = "#6cf"; ctx.shadowBlur = glowOn() ? (18 * u) : 0;
     ctx.beginPath(); ctx.arc(0, -swLen * 0.5 * u, swLen * 0.62 * u, -0.5, 1.35); ctx.stroke();
     ctx.shadowBlur = 0; ctx.globalAlpha = 1;
   }
@@ -650,7 +703,7 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
     ctx.beginPath(); ctx.moveTo(-10 * u, -66 * u); ctx.lineTo(-17 * u, -55 * u); ctx.lineTo(-12 * u, -46 * u); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(10 * u, -66 * u); ctx.lineTo(23 * u, -62 * u); ctx.lineTo(35 * u, -60 * u); ctx.stroke();
     // 拳击光效
-    ctx.fillStyle = "#fff"; ctx.shadowColor = "#8df"; ctx.shadowBlur = 13 * u;
+    ctx.fillStyle = "#fff"; ctx.shadowColor = "#8df"; ctx.shadowBlur = glowOn() ? (13 * u) : 0;
     ctx.beginPath(); ctx.arc(37 * u, -60 * u, 4.6 * u, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
   } else if (pose === "win") {
     ctx.beginPath(); ctx.moveTo(-10 * u, -66 * u); ctx.lineTo(-18 * u, -80 * u); ctx.lineTo(-14 * u, -93 * u); ctx.stroke();
@@ -733,7 +786,7 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
 
   /* ============ 眼睛(发光杏仁眼) ============ */
   const eg = 0.75 + Math.sin(t * 4) * 0.25;
-  ctx.shadowColor = c.eye; ctx.shadowBlur = 10 * u * eg; ctx.fillStyle = c.eye;
+  ctx.shadowColor = c.eye; ctx.shadowBlur = glowOn() ? (10 * u * eg) : 0; ctx.fillStyle = c.eye;
   if (style === "belial") {
     ctx.beginPath(); ctx.moveTo(-6.6 * u, hy - 8 * u); ctx.quadraticCurveTo(-2.6 * u, hy - 11 * u, -1.4 * u, hy - 6.6 * u); ctx.quadraticCurveTo(-4 * u, hy - 4.6 * u, -6.6 * u, hy - 8 * u); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(6.6 * u, hy - 8 * u); ctx.quadraticCurveTo(2.6 * u, hy - 11 * u, 1.4 * u, hy - 6.6 * u); ctx.quadraticCurveTo(4 * u, hy - 4.6 * u, 6.6 * u, hy - 8 * u); ctx.closePath(); ctx.fill();
@@ -800,7 +853,7 @@ function drawMonster(ctx, mk, x, y, s, t, hurt, flip) {
   ctx.fillStyle = shade(m.c1, -40);
   ctx.beginPath(); ctx.moveTo(24 * u, -54 * u); ctx.lineTo(34 * u, -52 * u + Math.sin(t * 5) * 1.5 * u); ctx.lineTo(24 * u, -48 * u); ctx.closePath(); ctx.fill();
   // 眼
-  ctx.fillStyle = hurt > 0 ? "#fff" : "#ff3b30"; ctx.shadowColor = "#f30"; ctx.shadowBlur = 6 * u;
+  ctx.fillStyle = hurt > 0 ? "#fff" : "#ff3b30"; ctx.shadowColor = "#f30"; ctx.shadowBlur = glowOn() ? (6 * u) : 0;
   ctx.beginPath(); ctx.arc(18 * u, -59 * u, 2.6 * u, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
   // 角
   ctx.fillStyle = m.c2;
@@ -963,16 +1016,25 @@ function renderStages() {
 /* =================================================================
    战斗系统
    ================================================================= */
-const cv = $("battleCv"); const ctx = cv.getContext("2d");
+
+const cv = $("battleCv"); const ctx = cv.getContext("2d", { alpha: false, desynchronized: true });
 let B = null; // battle state
 let joyVec = { x: 0, y: 0 };
 
 function resizeCv() {
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+  const dpr = Math.min(Q.dprCap, window.devicePixelRatio || 1);
+  cv.width = Math.floor(innerWidth * dpr); cv.height = Math.floor(innerHeight * dpr);
+  cv.style.width = innerWidth + "px"; cv.style.height = innerHeight + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // 屏幕变了重新计算粒子预算
+  Q.particles = Q.tier === "low" ? 6 : (Q.tier === "mid" ? 12 : 22);
 }
 addEventListener("resize", resizeCv);
+// iOS 地址栏收缩/横竖屏切换
+addEventListener("orientationchange", () => setTimeout(resizeCv, 350));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => setTimeout(resizeCv, 120));
+}
 
 function startBattle(n) {
   requestLandscape();
@@ -1052,10 +1114,11 @@ function battleLoop(ts) {
   let dt = Math.min(0.05, (ts - B.lastTs) / 1000); B.lastTs = ts;
   if (B.hitstop > 0) { B.hitstop -= dt; dt *= 0.15; }
   B.t += dt;
+  Q.sample(ts);                     // 帧率监测 + 自动降档
   const W = innerWidth, H = innerHeight;
   const P = B.player;
 
-  if (!B.over) {
+  if (!B.over && !B.paused) {
     /* 刷怪 */
     B.spawnT -= dt;
     if (B.spawnT <= 0 && B.spawnLeft > 0 && B.monsters.filter(m => !m.dead).length < 4) {
@@ -1194,7 +1257,12 @@ function battleLoop(ts) {
   B.texts = B.texts.filter(t => t.life > 0);
   if (B.shake > 0) B.shake -= dt;
 
-  render(W, H);
+  // 异常保护: 单帧渲染出错不中断游戏(移动端稳健性关键)
+  try { render(W, H); }
+  catch (e) {
+    Q.errCount = (Q.errCount || 0) + 1;
+    if (Q.errCount <= 3) console.warn("[render]", e && e.message);
+  }
   requestAnimationFrame(battleLoop);
 }
 
@@ -1227,7 +1295,9 @@ function hitMonster(m, dmg, isUlt) {
 }
 function addText(x, y, txt, color, big) { B.texts.push({ x, y, txt, color, big, life: 0.9 }); }
 function burst(x, y, n) {
-  for (let i = 0; i < n; i++) {
+  // 粒子数按画质档位缩放
+  const real = Math.min(n, Q.particles);
+  for (let i = 0; i < real; i++) {
     const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 160;
     B.fx.push({ type: "spark", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.5 + Math.random() * 0.3, c: Math.random() < 0.5 ? "#ffd54a" : "#8df" });
   }
@@ -1320,24 +1390,29 @@ function render(W, H) {
   sky.addColorStop(0, "#8ec9ee"); sky.addColorStop(0.5, "#c9e6f5"); sky.addColorStop(0.62, "#7d8ba0"); sky.addColorStop(1, "#4a5568");
   ctx.fillStyle = sky; ctx.fillRect(-30, -30, W + 60, H + 60);
   // 云
-  ctx.fillStyle = "rgba(255,255,255,.75)";
-  for (let i = 0; i < 5; i++) {
-    const cx = ((i * 320 + t * 12 - B.camX * 0.2) % (W + 300)) - 150;
-    const cy = H * (0.08 + (i % 3) * 0.07);
-    ctx.beginPath(); ctx.ellipse(cx, cy, 70, 20, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + 45, cy + 6, 45, 15, 0, 0, Math.PI * 2); ctx.fill();
+  if (Q.bgDetail) {
+    ctx.fillStyle = "rgba(255,255,255,.75)";
+    for (let i = 0; i < 5; i++) {
+      const cx = ((i * 320 + t * 12 - B.camX * 0.2) % (W + 300)) - 150;
+      const cy = H * (0.08 + (i % 3) * 0.07);
+      ctx.beginPath(); ctx.ellipse(cx, cy, 70, 20, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 45, cy + 6, 45, 15, 0, 0, Math.PI * 2); ctx.fill();
+    }
   }
-  // 远景楼群
+  // 远景楼群(窗口图案只在画质允许时绘制，避免每帧数百次运算)
+  const drawWin = Q.bgDetail;
   for (const b of B.bld) {
     const x = b.x - B.camX * 0.55;
     if (x + b.w < -50 || x > W + 50) continue;
     const gy = H * 0.6;
     ctx.fillStyle = `rgba(70,85,110,${b.c})`;
     ctx.fillRect(x, gy - b.h, b.w, b.h);
-    ctx.fillStyle = "rgba(200,230,255,.25)";
-    for (let wy = gy - b.h + 10; wy < gy - 12; wy += 22)
-      for (let wx = x + 8; wx < x + b.w - 10; wx += 20)
-        if ((wx * wy + b.win * 999) % 7 > 2.5) ctx.fillRect(wx, wy, 8, 10);
+    if (drawWin) {
+      ctx.fillStyle = "rgba(200,230,255,.25)";
+      for (let wy = gy - b.h + 10; wy < gy - 12; wy += 26)
+        for (let wx = x + 8; wx < x + b.w - 10; wx += 24)
+          if ((wx * wy + b.win * 999) % 7 > 2.5) ctx.fillRect(wx, wy, 8, 10);
+    }
   }
   // 地面(楼顶平台)
   const gt = B.groundTop - 60;
@@ -1390,7 +1465,7 @@ function render(W, H) {
       if (P.transT > 0) {
         ctx.globalAlpha = 0.75;
         ctx.strokeStyle = "#8ef"; ctx.lineWidth = 5 * P.giant;
-        ctx.shadowColor = "#4cf"; ctx.shadowBlur = 26;
+        ctx.shadowColor = "#4cf"; ctx.shadowBlur = glowOn() ? 26 : 0;
         ctx.beginPath(); ctx.ellipse(x, P.y, 60 * P.giant, 16 * P.giant, 0, 0, Math.PI * 2); ctx.stroke();
         ctx.beginPath(); ctx.arc(x, P.y - 120 * P.giant, 60 * P.giant, 0, Math.PI * 2); ctx.stroke();
         ctx.shadowBlur = 0; ctx.globalAlpha = 1;
@@ -1437,13 +1512,15 @@ function render(W, H) {
     } else if (f.type === "tornado") {
       drawTornado(ctx, x, f.y, f.t);
     } else if (f.type === "flash" || f.type === "bigflash") {
-      const r = (f.type === "bigflash" ? 90 : 40) * (1 - f.t / f.life);
-      ctx.fillStyle = "rgba(200,240,255," + (0.8 * (1 - f.t / f.life)) + ")";
+      // 夹紧到 [0,1] 避免负半径(部分安卓/严格模式浏览器会抛异常导致画面卡死)
+      const k = Math.max(0, Math.min(1, 1 - f.t / f.life));
+      const r = Math.max(0.1, (f.type === "bigflash" ? 90 : 40) * k);
+      ctx.fillStyle = "rgba(200,240,255," + (0.8 * k) + ")";
       ctx.beginPath(); ctx.arc(x, f.y, r, 0, Math.PI * 2); ctx.fill();
     } else if (f.type === "ring") {
-      const pr = f.t / f.life;
+      const pr = Math.max(0, Math.min(1, f.t / f.life));
       ctx.strokeStyle = "rgba(120,255,220," + (1 - pr) + ")"; ctx.lineWidth = 8 * (1 - pr) + 2;
-      ctx.beginPath(); ctx.arc(x, f.y, pr * innerWidth * 0.65, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, f.y, Math.max(0.1, pr * innerWidth * 0.65), 0, Math.PI * 2); ctx.stroke();
     } else if (f.type === "bolt") {
       ctx.strokeStyle = "rgba(255,245,150," + (1 - f.t / f.life) + ")"; ctx.lineWidth = 5;
       ctx.beginPath(); let by = -20;
@@ -1456,7 +1533,7 @@ function render(W, H) {
   /* 漂浮文字 */
   ctx.textAlign = "center";
   for (const tx of B.texts) {
-    ctx.globalAlpha = Math.min(1, tx.life * 2);
+    ctx.globalAlpha = Math.max(0, Math.min(1, tx.life * 2));
     ctx.font = (tx.big ? "900 22px" : "800 16px") + " sans-serif";
     ctx.fillStyle = tx.color; ctx.strokeStyle = "#0008"; ctx.lineWidth = 3;
     ctx.strokeText(tx.txt, tx.x - B.camX, tx.y);
@@ -1570,34 +1647,86 @@ document.addEventListener("fullscreenchange", () => setTimeout(resizeCv, 100));
   document.addEventListener("pointerdown", unlock);
 })();
 
-/* ---------- 触控：摇杆 ---------- */
+/* =================================================================
+   触控层 —— iOS Safari / Android Chrome 双端兼容
+   pointer events 优先；不支持时退回 touch events；再退回 mouse
+   ================================================================= */
+const HAS_POINTER = !!window.PointerEvent;
+const EV = HAS_POINTER
+  ? { down: "pointerdown", move: "pointermove", up: "pointerup", cancel: "pointercancel" }
+  : { down: "touchstart", move: "touchmove", up: "touchend", cancel: "touchcancel" };
+// 统一取坐标(兼容 touch/mouse/pointer)
+function evXY(e) {
+  if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY, id: e.touches[0].identifier };
+  if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY, id: e.changedTouches[0].identifier };
+  return { x: e.clientX, y: e.clientY, id: e.pointerId !== undefined ? e.pointerId : 0 };
+}
+// 给元素绑定"按下即触发"的兼容事件
+function onTap(el, fn) {
+  let fired = false;
+  el.addEventListener(EV.down, e => { e.preventDefault(); fired = true; fn(e); }, { passive: false });
+  // 兜底: 某些旧安卓 WebView 不发 pointerdown
+  if (!HAS_POINTER) el.addEventListener("mousedown", e => { if (!fired) { e.preventDefault(); fn(e); } });
+}
+
+/* ---------- 触控：摇杆(支持滑动跟随 + 多点) ---------- */
 (function initJoy() {
   const joy = $("joy"), knob = $("knob");
   let jid = null, cx = 0, cy = 0;
   const R = 44;
   function setKnob(dx, dy) { knob.style.transform = `translate(${dx}px,${dy}px)`; }
-  joy.addEventListener("pointerdown", e => {
-    jid = e.pointerId; joy.setPointerCapture(jid);
+  joy.addEventListener(EV.down, e => {
+    e.preventDefault();
+    const p = evXY(e); jid = p.id;
+    if (HAS_POINTER && joy.setPointerCapture && e.pointerId !== undefined) { try { joy.setPointerCapture(e.pointerId); } catch (err) {} }
     const r = joy.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2;
     handle(e);
-  });
+  }, { passive: false });
   function handle(e) {
-    let dx = e.clientX - cx, dy = e.clientY - cy;
+    const p = evXY(e);
+    let dx = p.x - cx, dy = p.y - cy;
     const d = Math.hypot(dx, dy);
     if (d > R) { dx = dx / d * R; dy = dy / d * R; }
     setKnob(dx, dy);
     joyVec.x = dx / R; joyVec.y = dy / R;
   }
-  joy.addEventListener("pointermove", e => { if (e.pointerId === jid) handle(e); });
-  function up(e) { if (e.pointerId === jid) { jid = null; setKnob(0, 0); joyVec.x = 0; joyVec.y = 0; } }
-  joy.addEventListener("pointerup", up); joy.addEventListener("pointercancel", up);
+  joy.addEventListener(EV.move, e => {
+    if (jid === null) return;
+    e.preventDefault();
+    handle(e);
+  }, { passive: false });
+  function up(e) { jid = null; setKnob(0, 0); joyVec.x = 0; joyVec.y = 0; }
+  joy.addEventListener(EV.up, up);
+  joy.addEventListener(EV.cancel, up);
 })();
 
-/* ---------- 按钮 ---------- */
-$("btnAtk").addEventListener("pointerdown", e => { e.preventDefault(); doAttack(); });
-$("btnSkill").addEventListener("pointerdown", e => { e.preventDefault(); doSkill(); });
-$("btnUlt").addEventListener("pointerdown", e => { e.preventDefault(); doUlt(); });
-$("btnQuit").addEventListener("pointerdown", e => { e.preventDefault(); if (confirm("退出本场战斗？")) quitBattle(); });
+/* ---------- 按钮(双端兼容 + 多点触控) ---------- */
+onTap($("btnAtk"), doAttack);
+onTap($("btnSkill"), doSkill);
+onTap($("btnUlt"), doUlt);
+onTap($("btnQuit"), () => {
+  // iOS 独立窗口(PWA)下 confirm 可能被忽略，改用自绘确认
+  if (B && !B.over) { B.paused = !B.paused; toast(B.paused ? "已暂停，再点✕退出" : "继续战斗"); }
+  else quitBattle();
+});
+// 双击✕退出
+let quitTaps = 0, quitTimer = null;
+$("btnQuit").addEventListener(EV.down, e => {
+  e.preventDefault();
+  quitTaps++;
+  clearTimeout(quitTimer);
+  if (quitTaps >= 2) { quitTaps = 0; B = null; exitLandscape(); go("stages"); }
+  else quitTimer = setTimeout(() => { quitTaps = 0; }, 900);
+}, { passive: false });
+
+// 长按攻击键连击(手感更好)
+(function autoAttack() {
+  const btn = $("btnAtk");
+  let hold = null;
+  btn.addEventListener(EV.down, e => { e.preventDefault(); clearInterval(hold); hold = setInterval(doAttack, 260); }, { passive: false });
+  const stop = () => { clearInterval(hold); hold = null; };
+  btn.addEventListener(EV.up, stop); btn.addEventListener(EV.cancel, stop);
+})();
 // 键盘调试(电脑上也能玩)
 addEventListener("keydown", e => {
   if (!B) return;
@@ -1612,6 +1741,39 @@ addEventListener("keydown", e => {
 addEventListener("keyup", e => {
   if (["ArrowLeft", "ArrowRight", "a", "d"].includes(e.key)) joyVec.x = 0;
   if (["ArrowUp", "ArrowDown", "w", "s"].includes(e.key)) joyVec.y = 0;
+});
+
+/* =================================================================
+   平台兼容收尾 —— iOS / Android 常见坑处理
+   ================================================================= */
+// 1) 防止双击缩放(iOS Safari 会缩放，影响游戏操作)
+let lastTouch = 0;
+document.addEventListener("touchend", e => {
+  const now = Date.now();
+  if (now - lastTouch <= 300) e.preventDefault();
+  lastTouch = now;
+}, { passive: false });
+// 2) 阻止双指缩放 & 手势缩放
+document.addEventListener("gesturestart", e => e.preventDefault());
+document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// 3) iOS 音频解锁: 必须在用户手势中 resume AudioContext(以及静音开关陷阱)
+(function unlockAudio() {
+  const kick = () => {
+    try { if (SND.on) { const ac = SND.ctx(); if (ac && ac.state === "suspended") ac.resume(); } } catch (e) {}
+  };
+  ["touchstart", "touchend", "pointerdown", "click", "keydown"].forEach(ev =>
+    document.addEventListener(ev, kick, { passive: true, once: false }));
+})();
+// 4) 页面切到后台/回来: 停帧省电, 回来重算画布(安卓地址栏会改变视口)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { if (B) B.paused = true; }
+  else setTimeout(() => { resizeCv(); if (B && B.paused && !B.over) { /* 保持暂停，由玩家恢复 */ } }, 200);
+});
+window.addEventListener("pagehide", () => { if (B) B.paused = true; });
+// 5) 安卓返回键/手势返回时阻止误退出
+history.pushState({ game: 1 }, "");
+window.addEventListener("popstate", () => {
+  if (B && !B.over) { history.pushState({ game: 1 }, ""); B.paused = true; toast("已暂停"); }
 });
 
 /* ---------- 启动 ---------- */
