@@ -94,6 +94,8 @@
   .stage-card .mn { color:#fff; font-size:15px; font-weight:900; margin:3px 0 1px; }
   .stage-card .ml { color:#ff9d6b; font-size:11px; font-weight:700; }
   .stage-card .stars { color:#ffd54a; font-size:14px; letter-spacing:2px; margin-top:4px; }
+  .stage-card .diff { font-size:9px; margin-top:3px; letter-spacing:-1px; }
+  .stage-card.bossgiant { border-color:#f0f; background:linear-gradient(180deg,#4a0a3a,#1a0520); box-shadow:0 0 14px #f0f5; }
   .stage-card .go { margin-top:8px; display:inline-block; padding:6px 22px; border-radius:10px; background:linear-gradient(180deg,#ffb62e,#e0700c); border:1px solid #ffe08a; color:#fff; font-weight:900; font-size:13px; }
   .stage-card .go:active { transform:scale(.94); }
   .stage-card.boss { border-color:#c33; background:linear-gradient(180deg,#3e1030,#160a20); }
@@ -399,7 +401,7 @@ const HEROES = {
 
 /* ---------- 装备配置 ---------- */
 const EQUIPS = {
-  weapon: { icon: "🗡️", name: "欧布圣剑",   desc: "每级 +18 攻击",  per: 18, stat: "攻击", max: 10, cost: l => 200 + l * 180 },
+  weapon: { icon: "⚔️", name: "超级战剑",   desc: "每级 +18 攻击",  per: 18, stat: "攻击", max: 10, cost: l => 200 + l * 180 },
   armor:  { icon: "🛡️", name: "守护铠甲",   desc: "每级 +120 生命", per: 120, stat: "生命", max: 10, cost: l => 200 + l * 160 },
   boots:  { icon: "👟", name: "疾风战靴",   desc: "每级 +4% 移速与暴击", per: 4, stat: "身法", max: 8, cost: l => 150 + l * 150 }
 };
@@ -415,15 +417,15 @@ const MONSTERS = {
 };
 const STAGES = [
   { m: "gomora",  count: 6,  boss: false, lv: 1 },
-  { m: "telesdon",count: 8,  boss: false, lv: 2 },
-  { m: "gomora",  count: 8,  boss: "redking", lv: 3 },
-  { m: "eleking", count: 10, boss: false, lv: 4 },
-  { m: "telesdon",count: 10, boss: "eleking", lv: 5 },
-  { m: "eleking", count: 12, boss: "redking", lv: 6 },
-  { m: "gomora",  count: 12, boss: "zetton", lv: 7 },
-  { m: "telesdon",count: 14, boss: "zetton", lv: 8 },
-  { m: "eleking", count: 14, boss: "belial", lv: 9 },
-  { m: "zetton",  count: 15, boss: "belial", lv: 10 }
+  { m: "telesdon",count: 8,  boss: false, lv: 2, giant: 1 },
+  { m: "gomora",  count: 8,  boss: "redking", lv: 3, giant: 1 },
+  { m: "eleking", count: 10, boss: false, lv: 4, giant: 2 },
+  { m: "telesdon",count: 10, boss: "eleking", lv: 5, giant: 2 },
+  { m: "eleking", count: 12, boss: "redking", lv: 6, giant: 2 },
+  { m: "gomora",  count: 12, boss: "zetton", lv: 7, giant: 3 },
+  { m: "telesdon",count: 14, boss: "zetton", lv: 8, giant: 3 },
+  { m: "eleking", count: 14, boss: "belial", lv: 9, giant: 3, bossGiant: true },
+  { m: "zetton",  count: 15, boss: "belial", lv: 10, giant: 4, bossGiant: true }
 ];
 
 /* ---------- 工具 ---------- */
@@ -576,16 +578,71 @@ function drawUltra(ctx, hero, x, y, s, t, pose) {
     ctx.beginPath(); ctx.moveTo(0, -47 * u); ctx.lineTo(7 * u, -56 * u); ctx.lineTo(8 * u, -34 * u); ctx.lineTo(-8 * u, -34 * u); ctx.lineTo(-7 * u, -56 * u); ctx.closePath(); ctx.fill();
   }
 
-  /* ============ 彩色计时器(发光晶球) ============ */
+  /* ============ 彩色计时器(发光晶球 · 可转蓝) ============ */
   const gp = 0.7 + Math.sin(t * 3.5) * 0.3;
   const cgx = 0, cgy = -57 * u;
+  // gemBlue: 变身/蓄力时转为蓝色
+  const gemCol = hero._gemBlue ? "#39d0ff" : c.gem;
   const ring = ctx.createRadialGradient(cgx, cgy, 1 * u, cgx, cgy, 6 * u);
-  ring.addColorStop(0, "#ffffff"); ring.addColorStop(0.35, c.gem); ring.addColorStop(1, shade2(c.gem, -30));
-  ctx.fillStyle = ring; ctx.shadowColor = c.gem; ctx.shadowBlur = 14 * u * gp;
+  ring.addColorStop(0, "#ffffff"); ring.addColorStop(0.35, gemCol); ring.addColorStop(1, shade2(gemCol, -30));
+  ctx.fillStyle = ring; ctx.shadowColor = gemCol; ctx.shadowBlur = 14 * u * gp;
   ctx.beginPath(); ctx.arc(cgx, cgy, 4.2 * u, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 1.1 * u;
   ctx.beginPath(); ctx.arc(cgx, cgy, 4.2 * u, 0, Math.PI * 2); ctx.stroke();
+  // 发蓝时外扩光环
+  if (hero._gemBlue) {
+    ctx.globalAlpha = 0.5 + Math.sin(t * 6) * 0.25;
+    ctx.strokeStyle = "#5cd6ff"; ctx.lineWidth = 1.6 * u;
+    ctx.shadowColor = "#39d0ff"; ctx.shadowBlur = 12 * u;
+    ctx.beginPath(); ctx.arc(cgx, cgy, 6.4 * u, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  }
+
+  /* ============ 超级战剑(变大的巨剑) ============ */
+  const swordLv = (S && S.eq && S.eq.weapon) || 1;
+  const swLen = 62 + swordLv * 7;          // 随等级变长
+  const swW = 5.4 + swordLv * 0.55;        // 随等级变宽
+  const hold = pose === "atk" ? 0.55 : (pose === "ult" ? -0.35 : 0.2);
+  ctx.save();
+  ctx.translate(11 * u, -52 * u);
+  ctx.rotate(-0.55 + hold + Math.sin(t * 2.4) * 0.05);
+  // 剑刃(金属渐变 + 锋芒)
+  const bg2 = ctx.createLinearGradient(0, -swLen * u, 0, 0);
+  bg2.addColorStop(0, "#ffffff"); bg2.addColorStop(0.25, "#dff0ff");
+  bg2.addColorStop(0.6, "#9dc4e8"); bg2.addColorStop(1, "#6a8cb8");
+  ctx.fillStyle = bg2;
+  ctx.shadowColor = "#8ef"; ctx.shadowBlur = 10 * u;
+  ctx.beginPath();
+  ctx.moveTo(0, -swLen * u);
+  ctx.lineTo(swW * u, -swLen * 0.72 * u);
+  ctx.lineTo(swW * 0.75 * u, -3 * u);
+  ctx.lineTo(-swW * 0.75 * u, -3 * u);
+  ctx.lineTo(-swW * u, -swLen * 0.72 * u);
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0;
+  // 剑脊中缝
+  ctx.strokeStyle = "rgba(60,110,170,.55)"; ctx.lineWidth = 1.1 * u;
+  ctx.beginPath(); ctx.moveTo(0, -swLen * 0.92 * u); ctx.lineTo(0, -4 * u); ctx.stroke();
+  // 护手(角色主色)
+  ctx.fillStyle = c.main;
+  ctx.fillRect(-swW * 1.5 * u, -4 * u, swW * 3 * u, 4.4 * u);
+  ctx.fillStyle = lighten(c.main, 40);
+  ctx.fillRect(-swW * 1.5 * u, -4 * u, swW * 3 * u, 1.4 * u);
+  // 剑柄
+  ctx.strokeStyle = "#3a3a48"; ctx.lineWidth = 3.2 * u;
+  ctx.beginPath(); ctx.moveTo(0, 0.4 * u); ctx.lineTo(0, 9 * u); ctx.stroke();
+  ctx.fillStyle = c.gem;
+  ctx.beginPath(); ctx.arc(0, 10 * u, 2.6 * u, 0, Math.PI * 2); ctx.fill();
+  // 挥砍光弧
+  if (pose === "atk") {
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = "#cdf3ff"; ctx.lineWidth = 3 * u;
+    ctx.shadowColor = "#6cf"; ctx.shadowBlur = 18 * u;
+    ctx.beginPath(); ctx.arc(0, -swLen * 0.5 * u, swLen * 0.62 * u, -0.5, 1.35); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  }
+  ctx.restore();
 
   /* ============ 手臂 ============ */
   ctx.strokeStyle = metal(torsoTop * -1); ctx.lineWidth = 6 * u;
@@ -883,11 +940,16 @@ function renderStages() {
   STAGES.forEach((st, i) => {
     const n = i + 1; const unlocked = n <= S.maxStage; const stars = S.stars[n] || 0;
     const bossName = st.boss ? MONSTERS[st.boss].name : MONSTERS[st.m].name;
+    const isBossStage = !!st.boss;
+    const giantTag = st.bossGiant ? " ☠️巨型" : (st.giant > 0 ? ` (${st.giant}只巨型)` : "");
+    // 难度星级
+    const diff = Math.min(5, Math.ceil(st.lv / 2));
     const div = document.createElement("div");
-    div.className = "stage-card" + (st.boss ? " boss" : "") + (unlocked ? "" : " locked");
-    div.innerHTML = `<div class="sn">第 ${n} 关 ${st.boss ? "· BOSS关" : ""}</div>
-      <div class="mn">${st.boss ? "👹 " : "👾 "}${bossName}</div>
-      <div class="ml">怪兽等级 Lv.${st.lv}</div>
+    div.className = "stage-card" + (st.boss ? " boss" : "") + (st.bossGiant ? " bossgiant" : "") + (unlocked ? "" : " locked");
+    div.innerHTML = `<div class="sn">第 ${n} 关 ${st.bossGiant ? "· 巨型BOSS关" : (st.boss ? "· BOSS关" : "")}</div>
+      <div class="mn">${st.boss ? (st.bossGiant ? "☠️ " : "👹 ") : "👾 "}${bossName}</div>
+      <div class="ml">怪兽等级 Lv.${st.lv}${giantTag}</div>
+      <div class="diff">难度 ${"🔴".repeat(diff)}</div>
       <div class="stars">${"★".repeat(stars)}${"☆".repeat(3 - stars)}</div>
       ${unlocked ? `<span class="go" data-n="${n}">出击</span>` : `<div style="height:34px"></div><div class="lockmark">🔒</div>`}`;
     grid.appendChild(div);
@@ -924,8 +986,9 @@ function startBattle(n) {
     shake: 0, hitstop: 0,
     groundTop: H * 0.58, groundBot: H * 0.88,
     player: { x: W * 0.25, y: H * 0.74, hp: hs.hp, maxhp: hs.hp, atk: hs.atk, spd: hs.spd, crit: hs.crit,
-              face: 1, pose: "idle", atkT: 0, hurtT: 0, en: 0, skillCd: 0, ultT: 0, invul: 0 },
-    monsters: [], fx: [], projs: [], texts: [],
+              face: 1, pose: "idle", atkT: 0, hurtT: 0, en: 0, skillCd: 0, ultT: 0, invul: 0,
+              transT: 0, giant: 1, giantMax: 1.8 },
+    monsters: [], fx: [], projs: [], eprojs: [], texts: [],
     spawnLeft: st.count, spawnT: 0.5, bossSpawned: false, boss: null,
     combo: 0, comboT: 0, maxCombo: 0,
     result: null, lastTs: 0
@@ -945,28 +1008,42 @@ function startBattle(n) {
   $("phpBar").style.width = "100%"; $("penBar").style.width = "0%";
   updateUltBtn();
   go("battle");
+  // 开场变身巨大化
+  B.player.transT = 1.3; B.player.giant = 1;
+  SND.ultCharge();
+  B.fx.push({ type: "flash", x: B.player.x, y: B.player.y - 90, t: 0, life: 0.6 });
   B.lastTs = performance.now();
   requestAnimationFrame(battleLoop);
 }
 
-function spawnMonster(kind, lv, isBoss) {
+function spawnMonster(kind, lv, isBoss, isGiant) {
   const H = innerHeight;
   const side = Math.random() < 0.6 ? 1 : -1;
   const px = B.player.x + side * (innerWidth * 0.55 + Math.random() * 200);
   const m = MONSTERS[kind];
-  const hpBase = isBoss ? 260 + lv * 220 : 60 + lv * 45;
+  // 难度曲线: 血量/攻击随关卡显著提升
+  const tier = 1 + (lv - 1) * 0.18;                 // 每关 +18%
+  const hpBase = isBoss ? (380 + lv * 280) * tier * (isGiant ? 1.8 : 1)
+                        : (85 + lv * 52) * tier * (isGiant ? 1.6 : 1);
   const mo = {
-    kind, lv, boss: isBoss,
+    kind, lv, boss: isBoss, giant: !!isGiant,
     x: Math.max(60, Math.min(B.worldW - 60, px)),
     y: B.groundTop + Math.random() * (B.groundBot - B.groundTop),
     hp: hpBase, maxhp: hpBase,
-    atk: (isBoss ? 26 : 10) + lv * 4,
-    spd: (isBoss ? 0.55 : 0.75) + Math.random() * 0.25,
-    size: (isBoss ? 150 : 95) * m.size,
-    hurtT: 0, atkCd: 1 + Math.random(), dead: 0
+    atk: Math.round(((isBoss ? 30 : 13) + lv * 4.6) * (isGiant ? 1.35 : 1)),
+    spd: (isBoss ? 0.5 : 0.68) + Math.random() * 0.22,
+    // 体型显著加大
+    size: (isBoss ? 210 : (isGiant ? 190 : 125)) * m.size,
+    hurtT: 0, atkCd: 1 + Math.random(), dead: 0,
+    // BOSS/巨型怪有额外技能
+    skillCd: isBoss ? 3.5 : (isGiant ? 5 : 0),
+    smashT: 0
   };
   B.monsters.push(mo);
-  if (isBoss) { B.boss = mo; $("bossbar").style.display = "block"; $("bossName").textContent = "👹 " + m.name + "  Lv." + lv; }
+  if (isBoss) {
+    B.boss = mo; $("bossbar").style.display = "block";
+    $("bossName").textContent = (isGiant ? "☠️ 巨型" : "👹 ") + m.name + "  Lv." + lv;
+  }
 }
 
 /* ---------- 战斗主循环 ---------- */
@@ -982,13 +1059,15 @@ function battleLoop(ts) {
     /* 刷怪 */
     B.spawnT -= dt;
     if (B.spawnT <= 0 && B.spawnLeft > 0 && B.monsters.filter(m => !m.dead).length < 4) {
-      spawnMonster(B.st.m, B.st.lv, false); B.spawnLeft--;
+      // 按关卡配置生成巨型怪(giant 表示本关巨型怪数量阈值)
+      const isGiant = (B.st.giant || 0) > 0 && B.spawnLeft <= (B.st.giant || 0);
+      spawnMonster(B.st.m, B.st.lv, false, isGiant); B.spawnLeft--;
       B.spawnT = 1.6;
     }
     if (!B.bossSpawned && B.st.boss && B.spawnLeft === 0 && B.monsters.filter(m => !m.dead && !m.boss).length <= 1) {
-      B.bossSpawned = true; spawnMonster(B.st.boss, B.st.lv + 1, true);
+      B.bossSpawned = true; spawnMonster(B.st.boss, B.st.lv + 1, true, !!B.st.bossGiant);
       SND.bossWarn();
-      toast("⚠️ BOSS 出现了！"); B.shake = 0.5;
+      toast(B.st.bossGiant ? "☠️ 巨型 BOSS 出现了！" : "⚠️ BOSS 出现了！"); B.shake = 0.5;
     }
 
     /* 玩家移动 */
@@ -1011,20 +1090,40 @@ function battleLoop(ts) {
     const tgt = P.x - W * 0.45;
     B.camX += (Math.max(0, Math.min(B.worldW - W, tgt)) - B.camX) * Math.min(1, dt * 6);
 
+    /* 变身巨大化 */
+    if (P.transT > 0) {
+      P.transT -= dt;
+      const prog = 1 - Math.max(0, P.transT) / 1.1;      // 0→1
+      P.giant = 1 + (P.giantMax - 1) * Math.min(1, prog * 1.35);
+      P.invul = Math.max(P.invul, 0.15);                  // 变身过程无敌
+      if (P.transT <= 0) { P.giant = P.giantMax; P.transT = 0; }
+    }
     /* 怪物 AI */
     for (const m of B.monsters) {
       if (m.dead) { m.dead += dt; continue; }
       if (m.hurtT > 0) m.hurtT -= dt;
       const dx = P.x - m.x, dy = P.y - m.y, d = Math.hypot(dx, dy);
-      const reach = m.boss ? 110 : 70;
+      const reach = m.boss ? 125 : (m.giant ? 110 : 82);
+      // 远程攻击(巨型怪/BOSS): 保持距离时喷火球
+      if (m.skillCd > 0) {
+        m.skillCd -= dt;
+        if (m.skillCd <= 0 && d > reach) {
+          m.skillCd = m.boss ? 3.2 : 5.5;
+          const spd = 300;
+          B.eprojs.push({ x: m.x, y: m.y - m.size * 0.5, vx: (dx / d) * spd, vy: (dy / d) * spd * 0.4,
+                          dmg: Math.round(m.atk * 1.3), r: m.boss ? 15 : 10, life: 3 });
+          B.fx.push({ type: "flash", x: m.x, y: m.y - m.size * 0.5, t: 0, life: 0.2 });
+        }
+      }
       if (d > reach) {
-        m.x += (dx / d) * m.spd * 90 * dt;
-        m.y += (dy / d) * m.spd * 60 * dt;
+        m.x += (dx / d) * m.spd * 95 * dt;
+        m.y += (dy / d) * m.spd * 62 * dt;
         m.y = Math.max(B.groundTop, Math.min(B.groundBot, m.y));
       } else {
         m.atkCd -= dt;
         if (m.atkCd <= 0) {
-          m.atkCd = m.boss ? 1.4 : 2.0;
+          // 越高关卡攻击越频繁
+          m.atkCd = (m.boss ? 1.15 : (m.giant ? 1.5 : 1.75)) - Math.min(0.5, m.lv * 0.04);
           if (P.invul <= 0) {
             P.hp -= m.atk; P.hurtT = 0.3; P.invul = 0.35;
             SND.hurt();
@@ -1036,6 +1135,21 @@ function battleLoop(ts) {
         }
       }
     }
+
+    /* 敌方火球 */
+    for (const ep of B.eprojs) {
+      ep.x += ep.vx * dt; ep.y += ep.vy * dt; ep.life -= dt;
+      if (Math.hypot(ep.x - P.x, ep.y - (P.y - 70)) < 34 + ep.r && P.invul <= 0) {
+        ep.life = 0;
+        P.hp -= ep.dmg; P.hurtT = 0.3; P.invul = 0.4;
+        SND.hurt(); B.shake = Math.max(B.shake, 0.26);
+        addText(P.x, P.y - 130, "-" + ep.dmg, "#ff8c5c");
+        $("phpBar").style.width = Math.max(0, P.hp / P.maxhp * 100) + "%";
+        burst(ep.x, ep.y, 10);
+        if (P.hp <= 0) return endBattle(false);
+      }
+    }
+    B.eprojs = B.eprojs.filter(p => p.life > 0);
 
     /* 投射物(光线技能) */
     for (const pr of B.projs) {
@@ -1123,13 +1237,16 @@ function burst(x, y, n) {
 function doAttack() {
   const P = B && B.player; if (!P || B.over || P.atkT > 0 || P.ultT > 0) return;
   P.atkT = 0.28;
-  // 命中判定：面前扇形
+  // 命中判定：面前扇形(随巨大化扩大范围，战剑加持)
   let hitAny = false;
+  const reachMul = P.giant * (1 + S.eq.weapon * 0.06);   // 越大 + 剑等级越高 → 打得更远
+  const dmgMul = 1 + (P.giant - 1) * 0.9;                // 巨大化提升伤害
   for (const m of B.monsters) {
     if (m.dead) continue;
     const dx = m.x - P.x, dy = m.y - P.y;
-    if (Math.abs(dy) < 90 && dx * P.face > -30 && Math.abs(dx) < (m.boss ? 170 : 130)) {
-      hitMonster(m, P.atk, false); hitAny = true;
+    const rr = (m.boss ? 170 : 130) * reachMul;
+    if (Math.abs(dy) < 90 * P.giant && dx * P.face > -30 && Math.abs(dx) < rr) {
+      hitMonster(m, P.atk * dmgMul, false); hitAny = true;
     }
   }
   if (hitAny) { B.hitstop = 0.05; B.shake = Math.max(B.shake, 0.08); }
@@ -1151,6 +1268,9 @@ function doUlt() {
   const b = $("ultBanner"); b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
   B.shake = 0.7; B.hitstop = 0.3;
   SND.ultCharge();
+  // 胸口计时器转为蓝色(蓄力发光)
+  h._gemBlue = true;
+  setTimeout(() => { h._gemBlue = false; }, 2200);
   const dmg = P.atk * 1.1;
   if (h.ultType === "tornado2") {
     // 超级双龙卷风：两股龙卷风一前一后双向席卷全场
@@ -1262,15 +1382,39 @@ function render(W, H) {
       }
     } else {
       const x = P.x - B.camX;
-      const scale = 0.8 + (P.y - B.groundTop) / (B.groundBot - B.groundTop) * 0.4;
+      const scale = (0.8 + (P.y - B.groundTop) / (B.groundBot - B.groundTop) * 0.4) * P.giant;
       ctx.fillStyle = "rgba(0,0,20,.3)";
       ctx.beginPath(); ctx.ellipse(x, P.y + 4, 34 * scale, 8 * scale, 0, 0, Math.PI * 2); ctx.fill();
       if (P.invul > 0 && Math.floor(t * 20) % 2) ctx.globalAlpha = 0.5;
+      // 变身光环
+      if (P.transT > 0) {
+        ctx.globalAlpha = 0.75;
+        ctx.strokeStyle = "#8ef"; ctx.lineWidth = 5 * P.giant;
+        ctx.shadowColor = "#4cf"; ctx.shadowBlur = 26;
+        ctx.beginPath(); ctx.ellipse(x, P.y, 60 * P.giant, 16 * P.giant, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, P.y - 120 * P.giant, 60 * P.giant, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      }
       ctx.save(); ctx.translate(x, 0); ctx.scale(P.face, 1); ctx.translate(-x, 0);
       drawUltra(ctx, HEROES[S.hero], x, P.y, 150 * scale, t, P.pose);
       ctx.restore();
       ctx.globalAlpha = 1;
+      // 巨大化标识
+      if (P.giant > 1.35) {
+        ctx.fillStyle = "#7cf5ff"; ctx.font = "900 12px sans-serif"; ctx.textAlign = "center";
+        ctx.fillText("★ 巨大化 ★", x, P.y - 175 * P.giant);
+      }
     }
+  }
+
+  /* 敌方火球 */
+  for (const ep of B.eprojs) {
+    const x = ep.x - B.camX;
+    const rg = ctx.createRadialGradient(x, ep.y, 1, x, ep.y, ep.r * 1.8);
+    rg.addColorStop(0, "#fff"); rg.addColorStop(0.35, "#ffb040"); rg.addColorStop(1, "rgba(255,60,0,0)");
+    ctx.fillStyle = rg; ctx.shadowColor = "#f60"; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.arc(x, ep.y, ep.r * 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
   }
 
   /* 投射物 */
