@@ -197,6 +197,12 @@
     .hero-card canvas { height:100px; }
   }
 
+  /* 帧率显示(调试) */
+  #fpsHud { position:absolute; left:max(8px, env(safe-area-inset-left,0px)); bottom:6px; color:#7cf5ff;
+            font-size:10px; font-weight:700; font-family:ui-monospace,Menlo,monospace; opacity:.65;
+            text-shadow:0 1px 2px #000; pointer-events:none; z-index:4; }
+  #fpsHud.on { display:block; }
+
   /* 大招演出字幕 */
   #ultBanner { position:absolute; left:0; right:0; top:34%; text-align:center; z-index:6; pointer-events:none; opacity:0; }
   #ultBanner.show { animation:ub 1.6s ease forwards; }
@@ -274,7 +280,8 @@
       </div>
       <div class="bossbar" id="bossbar"><div class="bn" id="bossName"></div><div class="bhp"><i id="bossHpBar"></i></div></div>
       <div class="combo" id="comboTxt"></div>
-      <div id="ultBanner"><div class="big" id="ultBannerTxt">超级龙卷风！</div></div>
+      <div id="ultBanner"><div class="big" id="ultBannerTxt">超级双龙卷风！</div></div>
+        <div id="fpsHud"></div>
     </div>
     <div class="joy" id="joy"><div class="knob" id="knob"></div></div>
     <div class="btns">
@@ -347,6 +354,11 @@ const Q = (function () {
         // 连续低帧率 → 降档
         if (q.fps < 40 && q.tier === "high") { q.tier = "mid"; q.dprCap = 1.5; q.particles = 12; resizeCv(); }
         else if (q.fps < 28 && q.tier === "mid") { q.tier = "low"; q.dprCap = 1; q.particles = 6; q.glow = false; resizeCv(); }
+      }
+      // 帧率显示(调试开关: 大厅连点左下角或 URL 加 #fps)
+      const hud = document.getElementById("fpsHud");
+      if (hud && hud.classList.contains("on")) {
+        hud.textContent = q.fps + " fps · " + q.tier + " · " + q.dprCap + "x";
       }
     }
   };
@@ -1777,6 +1789,10 @@ window.addEventListener("popstate", () => {
 });
 
 /* ---------- 启动 ---------- */
+// URL 加 #fps 可显示实时帧率(排查手机流畅度用, 默认关闭)
+if (location.hash.indexOf("fps") >= 0) {
+  const h = document.getElementById("fpsHud"); if (h) h.classList.add("on");
+}
 refreshLobby();
 </script>
 </body>
