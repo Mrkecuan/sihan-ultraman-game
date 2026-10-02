@@ -270,6 +270,9 @@ html[data-game-compact=true] #lobbyHeroCv{height:175px!important;width:220px!imp
 
 @media(orientation:landscape) and (min-height:366px) and (max-height:500px){#commandPanel{gap:6px}.deck-card{padding:8px}.deck-card b{font-size:15px;margin:3px 0}.deck-actions button{padding:6px;min-height:34px}#deckStart{min-height:40px}}
 
+
+#deckTeam,#teamMode,#teamHud,#btnTeam,.team-panel{display:none!important}
+#commandPanel .deck-actions{grid-template-columns:1fr 1fr}.extra-controls{gap:9px}
 </style>
 </head>
 <body>
@@ -1210,11 +1213,11 @@ function battleLoop(ts) {
     if(B.over) return;
     /* 刷怪 */
     B.spawnT -= dt;
-    if (B.spawnT <= 0 && B.spawnLeft > 0 && B.monsters.filter(m => !m.dead).length < 4) {
+    if (B.spawnT <= 0 && B.spawnLeft > 0 && B.monsters.filter(m => !m.dead).length < Math.min(6,3+Math.ceil(B.n/3))) {
       // 按关卡配置生成巨型怪(giant 表示本关巨型怪数量阈值)
       const isGiant = (B.st.giant || 0) > 0 && B.spawnLeft <= (B.st.giant || 0);
       spawnMonster(B.st.m, B.st.lv, false, isGiant); B.spawnLeft--;
-      B.spawnT = 1.6;
+      B.spawnT = Math.max(.85,1.65-B.n*.07);
     }
     if (!B.bossSpawned && B.st.boss && B.spawnLeft === 0 && B.monsters.filter(m => !m.dead && !m.boss).length <= 1) {
       B.bossSpawned = true; spawnMonster(B.st.boss, B.st.lv + 1, true, !!B.st.bossGiant);
@@ -1872,11 +1875,11 @@ const startBattleBase=startBattle;
 startBattle=function(n){
  if(B) {B.over=true;cancelAnimationFrame(B.raf);}
  joyVec={x:0,y:0}; duoKeys.clear(); startBattleBase(n);
- B.buddy={x:B.player.x+95,y:B.player.y+8,face:1,pose:'idle',atkT:0,cd:0,hero:S.hero==='sihan'?'orb':'sihan'};
+ B.buddy=null;
  B.team=0; B.teamFX=0; B.guardT=0; B.guardCd=0; B.kickCd=0; B.healCd=12;
  B.player.kickT=0; B.player.chain=0;
  $("ultBanner").classList.remove("show");$("comboTxt").classList.remove("show");updateSkillCd();
- updateTeamHud(); toast(S.teamMode==='auto'?'搭档会自动跟随攻击；积满协作值释放合击':'P2：方向键移动，N 攻击，M 光线；P1 用 WASD');
+ updateTeamHud();
 };
 const skillBase=doSkill;
 doSkill=function(){if(!B||B.over||B.paused||B.player.skillCd>0||B.player.ultT>0)return;skillBase();if(S.device==='boomerang')B.returnShot={t:.65,x:B.player.x+B.player.face*440,y:B.player.y-60,face:B.player.face};};
@@ -1901,15 +1904,8 @@ function buddyAttack(ranged){if(!B||B.over||B.paused||!B.buddy||B.buddy.cd>0)ret
 function updateTeamHud(){if(!B||!B.buddy)return;$('teamHud').textContent=`${HEROES[B.buddy.hero].name} · ${S.teamMode==='auto'?'自动协作':'P2 方向键 / N / M'} | 合击 ${Math.floor(B.team)}%`;
  for(const [id,cd,label]of [['btnKick',B.kickCd,'飞踢'],['btnGuard',B.guardCd,'光盾']]){$(id).textContent=cd>0?label+' '+Math.ceil(cd):label;$(id).disabled=cd>0;}$('btnTeam').textContent=B.team>=100?'合击！':`合击 ${Math.floor(B.team)}%`;$('btnTeam').disabled=B.team<100;}
 function updateTeam(dt){
- const p=B.player,a=B.buddy;if(!a)return;
- B.kickCd=Math.max(0,B.kickCd-dt);B.guardCd=Math.max(0,B.guardCd-dt);B.guardT=Math.max(0,B.guardT-dt);B.teamFX=Math.max(0,B.teamFX-dt);p.kickT=Math.max(0,p.kickT-dt);a.cd=Math.max(0,a.cd-dt);a.atkT=Math.max(0,a.atkT-dt);
- B.team=Math.min(100,B.team+dt*2);
- if(a.atkT<=0){let dx=0,dy=0;
- if(S.teamMode==='auto'){const target=B.monsters.find(m=>!m.dead&&Math.abs(m.x-p.x)<360);const tx=target?target.x-70*(target.x>=p.x?1:-1):p.x-p.face*80;dx=tx-a.x;dy=(target?target.y:p.y+12)-a.y;if(target&&Math.hypot(dx,dy)<150)buddyAttack(false);}
- else{dx=(duoKeys.has('ArrowRight')?1:0)-(duoKeys.has('ArrowLeft')?1:0);dy=(duoKeys.has('ArrowDown')?1:0)-(duoKeys.has('ArrowUp')?1:0);dx*=150;dy*=150;}
- const dist=Math.hypot(dx,dy);if(dist>10){const f=Math.min(1,240*dt/dist);a.x+=dx*f;a.y+=dy*f*.7;a.face=dx<0?-1:1;a.pose='run';}else if(a.atkT<=0)a.pose='idle';
- }
- a.x=Math.max(Math.max(30,B.camX+30),Math.min(B.worldW-30,B.camX+gameW()-30,a.x));a.y=Math.max(B.groundTop,Math.min(B.groundBot,a.y));
+ const p=B.player;
+ B.kickCd=Math.max(0,B.kickCd-dt);B.guardCd=Math.max(0,B.guardCd-dt);B.guardT=Math.max(0,B.guardT-dt);B.teamFX=0;p.kickT=Math.max(0,p.kickT-dt);
  if(B.returnShot){B.returnShot.t-=dt;if(B.returnShot.t<=0){const r=B.returnShot;B.projs.push({x:r.x,y:r.y,vx:-r.face*620,dmg:p.atk*(.5+S.eq.boomerang*.08),life:1.2,hit:new Set()});B.returnShot=null;}}
  if(S.device==='drone'){B.healCd-=dt;if(B.healCd<=0){B.healCd=12;p.hp=Math.min(p.maxhp,p.hp+24+S.eq.drone*12);$('phpBar').style.width=p.hp/p.maxhp*100+'%';addText(p.x,p.y-150,'无人机治疗','#8effb2');}}
  if(B.guardT>0){for(const ep of B.eprojs)if(ep.life>0&&Math.hypot(ep.x-p.x,ep.y-(p.y-70))<115){ep.life=0;B.team=Math.min(100,B.team+4);burst(ep.x,ep.y,5);}}
@@ -2182,7 +2178,7 @@ const triUpdateBase=updateTeam;updateTeam=function(dt){triUpdateBase(dt);if(!B||
  for(const m of B.monsters){if(m.recoilVX){m.x=Math.max(35,Math.min(B.worldW-35,m.x+m.recoilVX*dt));m.recoilVX*=Math.exp(-dt*12);if(Math.abs(m.recoilVX)<1)m.recoilVX=0;}m.liftT=Math.max(0,(m.liftT||0)-dt);m.motionStagger=Math.max(0,(m.motionStagger||0)-dt);}for(const f of B.triFX||[])f.age+=dt;B.triFX=(B.triFX||[]).filter(f=>f.age<f.life);};
 const triHitBase=hitMonster;hitMonster=function(m,dmg,isUlt){const before=m.hp;triHitBase(m,dmg,isUlt);if(B&&m.hp<before){m.recoilVX=B.player.face*(isUlt?90:45);m.motionStagger=.1;B.hitstop=Math.max(B.hitstop,isUlt?.03:.025);}};
 const triDrawBase=drawUltra;
-drawUltra=function(c,h,x,y,s,t,pose){const player=B&&c===ctx&&h===HEROES[S.hero],p=player?B.player:null;const moving=pose==='run',a=p?.swing,phase=a?Math.min(1,a.age/a.duration):0;const lean=p?.hitRecoil>0?-.10:moving?.035:0;const breathe=Math.sin(t*2.6)*.004;const dip=a?Math.sin(phase*Math.PI)*s*.018:moving?Math.abs(Math.sin(t*14))*s*.013:Math.sin(t*2.6)*s*.002;c.save();c.translate(x,y+dip);c.rotate(lean);c.scale(1-breathe,1+breathe);
+drawUltra=function(c,h,x,y,s,t,pose){const player=B&&(c===ctx||c===motionCtx)&&h===HEROES[S.hero],p=player?B.player:null;const moving=pose==='run',a=p?.swing,phase=a?Math.min(1,a.age/a.duration):0;const lean=p?.hitRecoil>0?-.10:moving?.035:0;const breathe=Math.sin(t*2.6)*.004;const dip=a?Math.sin(phase*Math.PI)*s*.018:moving?Math.abs(Math.sin(t*14))*s*.013:Math.sin(t*2.6)*s*.002;c.save();c.translate(x,y+dip);c.rotate(lean);c.scale(1-breathe,1+breathe);
  if(h.style==='orbTrinity'&&trinity.ready){let i=0;if(moving)i=Math.floor(p?.runPhase||t*8)%2+1;if(p?.hitRecoil>0||pose==='guard')i=7;else if(p?.kickT>0||pose==='kick')i=6;else if(B?.triUlt&&player){const age=B.triUlt.age;i=age<.35?0:age<.8?3:age<1.1?4:age<1.4?5:8;}else if(a)i=a.index===2?(phase<.35?5:8):phase<.20?0:3+a.index;else if(pose==='atk'||pose==='heavy')i=pose==='heavy'?5:3;else if(pose==='ult')i=5;
  const frame=trinity.frames[i];const height=i===8?s*.82:s*frame.height/trinity.frames[0].height;if(player&&(B.dash||a&&phase>.22&&phase<.55)){c.save();c.globalAlpha*=.18;drawRealSprite(c,frame,-s*.11,-3,height,0,1);c.restore();}drawRealSprite(c,frame,0,i===6?-s*.14:0,height,0,1);
  }else{if(player&&B.dash){c.save();c.globalAlpha*=.14;triDrawBase(c,h,-s*.15,0,s,t,pose);c.restore();}triDrawBase(c,h,0,0,s,t,pose);}c.restore();};
@@ -2215,7 +2211,7 @@ function drawArenaBackdrop(c,w,h,id,cam=0,t=0){const a=ARENAS[id],horizon=h*.39;
 }
 renderStages=function(){missionSelection=Math.max(1,Math.min(missionSelection,S.maxStage,STAGES.length));const grid=$('stageGrid');grid.replaceChildren();const layout=document.createElement('div');layout.className='mission-layout';const list=document.createElement('div');list.className='mission-list';STAGES.forEach((st,i)=>{const n=i+1,b=document.createElement('button');b.className='mission-item'+(missionSelection===n?' active':'');b.disabled=n>S.maxStage;const title=document.createElement('b');title.textContent='任务 '+String(n).padStart(2,'0')+' · '+(st.boss?'强敌来袭':'区域清剿');const sub=document.createElement('small');sub.textContent=n>S.maxStage?'通关前一任务解锁':'★'.repeat(S.stars[n]||0)+'☆'.repeat(3-(S.stars[n]||0))+'　Lv.'+st.lv;b.append(title,sub);b.onclick=()=>{const scroll=list.scrollTop;missionSelection=n;renderStages();document.querySelector('.mission-list').scrollTop=scroll;};list.append(b);});
  const st=STAGES[missionSelection-1],detail=document.createElement('div');detail.className='mission-detail';const title=document.createElement('h2');title.textContent='任务 '+String(missionSelection).padStart(2,'0')+' / 选择作战区域';const desc=document.createElement('p');desc.className='mission-sub';desc.textContent='目标：清除全部 '+(st.count+(st.boss?1:0))+' 只敌人'+(st.boss?'，包括 '+MONSTERS[st.boss].name:'')+'。';const picks=document.createElement('div');picks.className='map-picks';for(const [id,a]of Object.entries(ARENAS)){const b=document.createElement('button');b.className='map-pick'+(S.arenaId===id?' active':'');b.dataset.map=id;const pic=document.createElement('canvas');pic.width=320;pic.height=140;drawArenaBackdrop(pic.getContext('2d'),320,140,id);const label=document.createElement('span');label.textContent=a.name;b.append(pic,label);b.onclick=()=>{S.arenaId=id;save();renderStages();};picks.append(b);}const mapDesc=document.createElement('p');mapDesc.className='mission-sub';mapDesc.textContent=ARENAS[S.arenaId].tag+' · '+ARENAS[S.arenaId].desc;const bottom=document.createElement('div');bottom.className='mission-bottom';const rewards=document.createElement('div');rewards.className='rewards';rewards.textContent='出战：'+HEROES[S.hero].name+'｜通关基础金币 '+(120+missionSelection*60);const launch=document.createElement('button');launch.id='missionStart';launch.textContent='出战　›';launch.onclick=()=>startBattle(missionSelection);bottom.append(rewards,launch);detail.append(title,desc,picks,mapDesc,bottom);layout.append(list,detail);grid.append(layout);};
-const arenaStartBase=startBattle;startBattle=function(n){if(!Number.isInteger(n)||n<1||n>STAGES.length||n>S.maxStage){toast('请先完成前一任务');return;}arenaStartBase(n);if(!B||B.over)return;jumpHeld=false;B.arenaId=S.arenaId;B.groundTop=gameH()*.48;B.groundBot=gameH()*.88;B.player.z=0;B.player.vz=0;B.player.jumps=0;B.player.jumpLock=0;B.grab=null;B.grabCd=0;B.clearTimer=0;B.elapsed=0;B.lastGroundHeight=gameH();B.props=ARENAS[B.arenaId].props.map((a,i)=>({id:i,x:a[0]*B.worldW,depth:a[1],y:B.groundTop+a[1]*(B.groundBot-B.groundTop),w:a[2],d:a[3],height:a[4]}));B.player.x=Math.max(B.player.x,180);B.buddy.x=B.player.x-70;B.buddy.y=B.player.y+20;arenaControls();toast('摇杆前后移动 · 空格/跳跃可二段跳 · G抓取连击 · Shift闪避');};
+const arenaStartBase=startBattle;startBattle=function(n){if(!Number.isInteger(n)||n<1||n>STAGES.length||n>S.maxStage){toast('请先完成前一任务');return;}arenaStartBase(n);if(!B||B.over)return;jumpHeld=false;B.arenaId=S.arenaId;B.groundTop=gameH()*.48;B.groundBot=gameH()*.88;B.player.z=0;B.player.vz=0;B.player.jumps=0;B.player.jumpLock=0;B.grab=null;B.grabCd=0;B.clearTimer=0;B.elapsed=0;B.lastGroundHeight=gameH();B.props=ARENAS[B.arenaId].props.map((a,i)=>({id:i,x:a[0]*B.worldW,depth:a[1],y:B.groundTop+a[1]*(B.groundBot-B.groundTop),w:a[2],d:a[3],height:a[4]}));B.player.x=Math.max(B.player.x,180);arenaControls();toast('摇杆前后移动 · 空格/跳跃可二段跳 · G抓取连击 · Shift闪避');};
 const arenaRemapBase=remapArena;remapArena=function(){arenaRemapBase();if(!B?.arenaId)return;const oldTop=B.groundTop,oldSpan=Math.max(1,B.groundBot-oldTop);B.groundTop=gameH()*.48;B.groundBot=gameH()*.88;for(const a of [B.player,B.buddy,...B.monsters])if(a)a.y=B.groundTop+Math.max(0,Math.min(1,(a.y-oldTop)/oldSpan))*(B.groundBot-B.groundTop);for(const p of B.props||[])p.y=B.groundTop+p.depth*(B.groundBot-B.groundTop);};
 function arenaIsClear(){return !!B&&B.spawnLeft===0&&(!B.st.boss||B.bossSpawned)&&B.monsters.every(m=>m.dead>0&&m.hp<=0);}
 function checkArenaClear(){return arenaIsClear();}
@@ -2245,10 +2241,35 @@ const arenaUpdateBase=updateTeam;updateTeam=function(dt){arenaUpdateBase(dt);if(
  const remaining=B.spawnLeft+B.monsters.filter(m=>!m.dead).length+(B.st.boss&&!B.bossSpawned?1:0);$('objTxt').textContent=ARENAS[B.arenaId].name+' · 任务 '+B.n+'\n剩余 '+remaining+' / '+B.need+'　'+Math.floor(B.elapsed/60)+':'+String(Math.floor(B.elapsed%60)).padStart(2,'0');$('killTxt').textContent='击败 '+B.kills;arenaControls();};
 function drawArenaProp(c,p){const x=p.x-B.camX,y=p.y,scale=.75+(y-B.groundTop)/(B.groundBot-B.groundTop)*.45,w=p.w*scale,d=p.d*.48*scale,h=p.height*scale,a=ARENAS[B.arenaId];c.save();c.fillStyle='#020a1644';c.beginPath();c.ellipse(x+9,y+6,w*.75,d*.65,0,0,Math.PI*2);c.fill();function poly(points,color){c.fillStyle=color;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();c.strokeStyle='#81aab738';c.lineWidth=1;c.stroke();}poly([[x-w/2,y-d],[x+w/2,y-d],[x+w/2,y-h-d],[x-w/2,y-h-d]],B.arenaId==='moon'?'#626f80':'#2d4d60');poly([[x+w/2,y-d],[x+w/2+d,y],[x+w/2+d,y-h],[x+w/2,y-h-d]],'#152c3c');poly([[x-w/2,y-h-d],[x+w/2,y-h-d],[x+w/2+d,y-h],[x-w/2+d,y-h]],'#6b8493');c.strokeStyle=a.light;c.globalAlpha=.8;c.lineWidth=2;c.beginPath();c.moveTo(x-w*.35,y-h*.65-d);c.lineTo(x+w*.35,y-h*.65-d);c.stroke();c.restore();}
 const arenaCityBase=drawRealCity;drawRealCity=function(c,w,h){if(!B?.arenaId){arenaCityBase(c,w,h);return;}drawArenaBackdrop(c,w,h,B.arenaId,B.camX,B.t);};
-const arenaDrawBase=drawUltra;drawUltra=function(c,h,x,y,s,t,pose){const main=B&&c===ctx&&h===HEROES[S.hero];if(main&&B.grab){c.save();c.translate(x,y);c.rotate(Math.sin(B.grab.age*25)*.025);arenaDrawBase(c,h,0,0,s,t,Math.sin(B.grab.age*20)>.3?'atk':'guard');c.restore();return;}arenaDrawBase(c,h,x,y,s,t,main&&B.player.z>15?'kick':pose);};
+const arenaDrawBase=drawUltra;drawUltra=function(c,h,x,y,s,t,pose){const main=B&&(c===ctx||c===motionCtx)&&h===HEROES[S.hero];if(main&&B.grab){c.save();c.translate(x,y);c.rotate(Math.sin(B.grab.age*25)*.025);arenaDrawBase(c,h,0,0,s,t,Math.sin(B.grab.age*20)>.3?'atk':'guard');c.restore();return;}arenaDrawBase(c,h,x,y,s,t,main&&B.player.z>15?'kick':pose);};
 const arenaFXBase=drawTeamFX;drawTeamFX=function(c){arenaFXBase(c);if(!B?.arenaId)return;const w=110,h=40,x=gameW()/2-w/2,y=gameH()-h-10;c.save();c.fillStyle='#041422aa';c.fillRect(x,y,w,h);c.strokeStyle='#749aaf66';c.strokeRect(x,y,w,h);const dot=(a,color,r)=>{c.fillStyle=color;c.beginPath();c.arc(x+a.x/B.worldW*w,y+5+(a.y-B.groundTop)/(B.groundBot-B.groundTop)*(h-10),r,0,Math.PI*2);c.fill();};for(const m of B.monsters)if(!m.dead)dot(m,m.boss?'#ffbf5d':'#ff7272',m.boss?3:2);dot(B.player,'#80e7fa',3);if(B.buddy)dot(B.buddy,'#b0ffab',2);c.restore();};
 // Main area shortcuts remain readable; detailed controls are shown in the pause panel.
 $('combatHint').style.bottom='56px';
+
+/* Solo combat: continuous motion, synchronized cinematic attacks, escalating mixed encounters. */
+const motionCanvas=document.createElement('canvas');motionCanvas.width=motionCanvas.height=384;const motionCtx=motionCanvas.getContext('2d');
+doTeam=function(){};buddyAttack=function(){};toggleTeam=function(){};S.teamMode='solo';
+updateTeamHud=function(){if(!B)return;for(const [id,cd,label]of [['btnKick',B.kickCd,'飞踢'],['btnGuard',B.guardCd,'光盾']]){$(id).textContent=cd>0?label+' '+Math.ceil(cd):label;$(id).disabled=cd>0;}};
+STAGES.forEach((st,i)=>{st.count=8+i*2;st.giant=Math.min(4,1+Math.floor(i/2));});
+const soloSpawn=spawnMonster;spawnMonster=function(kind,lv,boss,giant){if(!boss){const pool=[B.st.m,'gomora','wing','lava','pincer'];kind=pool[(B.spawnSerial||0)%pool.length];B.spawnSerial=(B.spawnSerial||0)+1;}soloSpawn(kind,lv,boss,giant);const m=B.monsters.at(-1);m.hp*=boss?1.15:1.22;m.maxhp=m.hp;m.atk*=1.05;m.role=m.boss?'首领':giant?'精英':'战斗单位';};
+const soloStart=startBattle;startBattle=function(n){if(!Number.isInteger(n)||n<1||n>STAGES.length||n>S.maxStage)return;soloStart(n);if(!B||B.over)return;B.buddy=null;B.cinema=null;B.player.flow=0;B.player.moveBlend=0;};
+const soloUpdate=updateTeam;updateTeam=function(dt){soloUpdate(dt);if(!B||B.over)return;const p=B.player;p.flow=(p.flow||0)+dt;p.moveBlend+=(Math.min(1,Math.hypot(joyVec.x,joyVec.y))-(p.moveBlend||0))*(1-Math.exp(-dt*13));
+ if(B.cinema){const u=B.cinema;u.age+=dt;const target=B.monsters.find(m=>!m.dead&&Math.abs(m.x-p.x)<650);if(u.age>.5&&u.age<.92&&target){const desired=target.x-u.face*95;p.x+=(desired-p.x)*(1-Math.exp(-dt*8));p.y+=(target.y-p.y)*(1-Math.exp(-dt*7));resolveProp(p,18,0);}for(let i=0;i<3;i++)if(!u.hit[i]&&u.age>=[.95,1.45,2.12][i]){u.hit[i]=true;const reach=i===2?680:260;for(const m of B.monsters){if(m.dead||Math.abs(m.y-p.y)>110||Math.abs(m.x-p.x)>reach)continue;hitMonster(m,p.atk*[1.1,1.3,2.8][i],true);m.recoilVX=u.face*(i===2?220:70);m.motionStagger=.25;m.liftT=.4;}B.triFX.push({type:'triple',index:i,x:p.x,y:p.y-75,face:u.face,age:0,life:.6,color:['#7beaff','#ffe68c','#ffffff'][i],reach,aim:180});B.shake=i===2?.32:.10;B.hitstop=i===2?.08:.025;SND[i===2?'thunder':'swing']();}if(u.age>=2.8)B.cinema=null;}
+};
+doUlt=function(){if(!B||B.over||B.paused||B.player.en<100||B.player.ultT>0)return;releaseGrab(false);cancelSwing();const p=B.player;p.en=0;p.atkT=0;p.ultT=2.8;p.invul=Math.max(p.invul,2.8);p.pose='ult';B.triUlt=null;B.cinema={age:0,hit:[false,false,false],face:p.face};$('penBar').style.width='0%';updateUltBtn();$('ultBannerTxt').textContent=HEROES[S.hero].ult;$('ultBanner').classList.remove('show');void $('ultBanner').offsetWidth;$('ultBanner').classList.add('show');SND.ultCharge();};
+// Render the existing suit into a small surface and articulate lower and upper regions continuously.
+const soloDraw=drawUltra;drawUltra=function(c,h,x,y,s,t,pose){if(c!==ctx||!B||h!==HEROES[S.hero]){soloDraw(c,h,x,y,s,t,pose);return;}const p=B.player,u=B.cinema,flow=p.flow||0,move=p.moveBlend||0,sw=p.swing,phase=sw?Math.min(1,sw.age/sw.duration):0;
+ const action=u?(u.age<.5?'guard':u.age<.95?'run':u.age<1.45?'atk':u.age<2.12?'heavy':'ult'):pose;
+ motionCtx.clearRect(0,0,384,384);soloDraw(motionCtx,h,192,340,230,t,action);
+ const surge=sw?Math.sin(phase*Math.PI):0,step=Math.sin(flow*13)*move,lean=u?Math.sin(u.age*5)*.055:surge*.07+move*.035;
+ c.save();c.translate(x,y-Math.abs(step)*s*.013);c.rotate(lean);const unit=s/230;
+ // Dense, overlapping strips preserve the face while giving hips, knees and shoulders continuous follow-through.
+ for(let sy=0;sy<384;sy+=3){const depth=Math.max(0,Math.min(1,(sy-235)/105));const shift=(step*8*depth*depth+surge*6*Math.sin((sy-120)/95))*unit;const lift=depth*Math.abs(step)*2*unit;c.drawImage(motionCanvas,0,sy,384,Math.min(3,384-sy),-192*unit+shift,(sy-340)*unit-lift,384*unit,Math.min(3,384-sy)*unit);}
+ c.restore();};
+const soloFX=drawTeamFX;drawTeamFX=function(c){soloFX(c);if(!B?.cinema)return;const u=B.cinema,p=B.player,w=gameW(),h=gameH(),a=Math.min(1,u.age*5,(2.8-u.age)*4);c.save();c.globalAlpha=a*.7;c.fillStyle='#020817';c.fillRect(0,0,w,23);c.fillRect(0,h-20,w,20);c.globalAlpha=a;const x=p.x-B.camX,y=p.y-70;if(u.age<.85){const q=u.age/.85;c.strokeStyle='#8aeaff';c.lineWidth=2;c.shadowColor='#5cddff';c.shadowBlur=12;for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y,25+q*70+i*12,50+q*30,i*Math.PI/3+u.age*3,0,Math.PI*2);c.stroke();}}else{c.strokeStyle='#acebff';c.globalAlpha=a*.32;for(let i=0;i<12;i++){const yy=(i*71+u.age*100)%h;c.beginPath();c.moveTo(u.face>0?0:w,yy);c.lineTo(u.face>0?w*.25:w*.75,yy+(h/2-yy)*.2);c.stroke();}}c.restore();};
+$('deckTeam').hidden=true;$('combatHint').textContent='抓取连打 · 二段跳 · 闪避取消 · 三段终结';
+
+const soloEnd=endBattle;endBattle=function(win){if(win&&B?.cinema)return;soloEnd(win);};
 
 /* ---------- 启动 ---------- */
 // URL 加 #fps 可显示实时帧率(排查手机流畅度用, 默认关闭)
