@@ -1009,7 +1009,7 @@ requestAnimationFrame(lobbyLoop);
 /* ---------- 英雄页 ---------- */
 function renderHeroes() {
   const grid = $("heroGrid"); grid.innerHTML = "";
-  for (const key of ["sihan", "orbTrinity", "orbLightning", ...Object.keys(HEROES).filter(k => !["sihan","orbTrinity","orbLightning"].includes(k))]) {
+  for (const key of ["wanxiang", "sihan", "orbTrinity", "orbLightning", ...Object.keys(HEROES).filter(k => !["wanxiang","sihan","orbTrinity","orbLightning"].includes(k))]) {
     const h = HEROES[key]; const owned = S.owned.includes(key); const sel = S.hero === key;
     const card = document.createElement("div");
     card.className = "hero-card" + (sel ? " sel" : "");
@@ -2045,10 +2045,19 @@ function drawRealCity(c,w,h){
  c.drawImage(REAL.city,-margin-shift*margin*.5,-10,dw+margin*.5,dh);
  const fog=c.createLinearGradient(0,0,0,h);fog.addColorStop(0,'#03102055');fog.addColorStop(.5,'#1323330a');fog.addColorStop(1,'#07101a22');c.fillStyle=fog;c.fillRect(0,0,w,h);
 }
+const wanxiangSprite=new Image();
+wanxiangSprite.src='assets/wanxiang-actions-v1.png';
 const realHeroOrder=['orb','tiga','grigio','zero','trigger','belial','zeroInf','noa'];
 function drawRealSprite(c,f,x,y,height,angle=0,squash=1){if(!f)return;const width=height*f.width/f.height;c.save();c.translate(x,y);c.rotate(angle);c.scale(1,squash);c.imageSmoothingEnabled=true;c.drawImage(f,-width/2,-height,width,height);c.restore();}
 drawUltra=function(c,hero,x,y,s,t,pose){
  if(!REAL.ready)return;
+ if(hero.style==='wanxiang'&&wanxiangSprite.complete&&wanxiangSprite.naturalWidth){
+  const frames=[[0,0,505,724],[510,0,670,724],[1100,0,710,724],[1740,0,432,724]];
+  const a=pose==='ult'?3:pose==='kick'?2:pose==='atk'||pose==='heavy'?1:0;
+  const [sx,sy,sw,sh]=frames[a],height=s,width=s*sw/sh;
+  c.save();c.translate(x,y-(pose==='run'?Math.abs(Math.sin(t*11))*2:Math.sin(t*2)*.8));
+  c.drawImage(wanxiangSprite,sx,sy,sw,sh,-width/2,-height,width,height);c.restore();return;
+ }
  const kid=hero.style==='sihan';const key=realHeroOrder.find(k=>HEROES[k]===hero)||'orb';
  if(B&&hero===HEROES[S.hero]&&B.player.visualBeamT>0)pose='ult';
  const action=pose==='atk'||pose==='heavy'?1:pose==='kick'?2:pose==='ult'?3:0;
@@ -2194,7 +2203,7 @@ const ARENAS={city:{name:'滨海都市',tag:'街区掩体 · 均衡重力',sky:[
 S.arenaId=ARENAS[S.arenaId]?S.arenaId:'city';let missionSelection=1;
 const command=document.createElement('div');command.id='commandPanel';command.innerHTML='<div class="deck-title">光之守护 / COMMAND CENTER</div><div class="deck-card"><span style="font-size:10px;color:#80dce7">当前出战</span><b id="deckHero"></b><p id="deckUlt"></p></div><div class="deck-map" id="deckMap"></div><div class="deck-actions"><button id="deckTeam">搭档模式</button><button onclick="forgeOpen()">英雄工坊</button><button onclick="go(\'equip\')">战备装备</button><button onclick="go(\'stages\')">地图任务</button></div><button id="deckStart" onclick="go(\'stages\')">开始战斗　›</button>';$('heroStage').append(command);$('deckTeam').onclick=()=>{toggleTeam();};
 const roster=document.createElement('div');roster.id='rosterRail';roster.innerHTML='<h3>出战英雄</h3><div id="rosterSlots"></div>';$('heroStage').append(roster);
-function drawRoster(){if(!REAL.ready)return;const box=$('rosterSlots');box.replaceChildren();for(const id of ['sihan','orbTrinity','orbLightning',...Object.keys(HEROES).filter(k=>!['sihan','orbTrinity','orbLightning'].includes(k))]){const h=HEROES[id],b=document.createElement('button');b.className='roster-item'+(S.hero===id?' selected':'')+(S.owned.includes(id)?'':' locked');b.title=h.name;b.setAttribute('aria-label',h.name);const pic=document.createElement('canvas');pic.width=100;pic.height=92;const c=pic.getContext('2d');drawUltra(c,h,50,130,135,0,'idle');const label=document.createElement('span');label.textContent=h.name.replace('奥特曼','').replace('·','');b.append(pic,label);b.onclick=()=>{if(!S.owned.includes(id)){go('heroes');return;}S.hero=id;save();refreshLobby();};box.append(b);}}
+function drawRoster(){if(!REAL.ready)return;const box=$('rosterSlots');box.replaceChildren();for(const id of ['wanxiang','sihan','orbTrinity','orbLightning',...Object.keys(HEROES).filter(k=>!['wanxiang','sihan','orbTrinity','orbLightning'].includes(k))]){const h=HEROES[id],b=document.createElement('button');b.className='roster-item'+(S.hero===id?' selected':'')+(S.owned.includes(id)?'':' locked');b.title=h.name;b.setAttribute('aria-label',h.name);const pic=document.createElement('canvas');pic.width=100;pic.height=92;const c=pic.getContext('2d');drawUltra(c,h,50,130,135,0,'idle');const label=document.createElement('span');label.textContent=h.name.replace('奥特曼','').replace('·','');b.append(pic,label);b.onclick=()=>{if(!S.owned.includes(id)){go('heroes');return;}S.hero=id;save();refreshLobby();};box.append(b);}}
 const arenaLobbyBase=refreshLobby;refreshLobby=function(){arenaLobbyBase();$('deckHero').textContent=HEROES[S.hero].name;$('deckUlt').textContent='必杀技 · '+HEROES[S.hero].ult;$('deckMap').textContent='作战区域 / '+ARENAS[S.arenaId].name;$('deckTeam').textContent=S.teamMode==='auto'?'搭档 · 自动':'搭档 · 双人';drawRoster();};
 Promise.all([realReady,forgeReady,trinityReady]).then(()=>{for(const id of ['lobby','stages'])$(id).style.removeProperty('background');refreshLobby();});
 function drawArenaBackdrop(c,w,h,id,cam=0,t=0){const a=ARENAS[id],horizon=h*.39;const sky=c.createLinearGradient(0,0,0,h);sky.addColorStop(0,a.sky[0]);sky.addColorStop(1,a.sky[1]);c.fillStyle=sky;c.fillRect(0,0,w,h);
@@ -2270,6 +2279,16 @@ const soloFX=drawTeamFX;drawTeamFX=function(c){soloFX(c);if(!B?.cinema)return;co
 $('deckTeam').hidden=true;$('combatHint').textContent='抓取连打 · 二段跳 · 闪避取消 · 三段终结';
 
 const soloEnd=endBattle;endBattle=function(win){if(win&&B?.cinema)return;soloEnd(win);};
+
+/* 万象合体发布 v1.1.0 — card and four-pose sprite integration. */
+HEROES.wanxiang={...HEROES.orbTrinity,name:'思翰奥特曼·万象合体',rarity:'UR · 原创融合',style:'wanxiang',atk:170,hp:1300,spd:1.13,ult:'万象终极光线',cost:{gold:0}};
+if(!S.owned.includes('wanxiang')){S.owned.push('wanxiang');S.hero='wanxiang';save();}
+wanxiangSprite.onload=()=>{refreshLobby();if($('heroGrid')?.children.length)renderHeroes();};
+wanxiangSprite.onerror=()=>toast('万象动作素材加载失败，请刷新重试');
+const fusionLink=document.createElement('a');fusionLink.href='assets/wanxiang-card-v1.png';fusionLink.target='_blank';fusionLink.rel='noopener';fusionLink.textContent='万象收藏卡 · v1.1.0';fusionLink.style.cssText='position:fixed;bottom:6px;left:50%;transform:translateX(-50%);z-index:50;color:#ffe5a2;background:#10192ee8;border:1px solid #aa8952;border-radius:16px;padding:5px 12px;font-size:11px;text-decoration:none';document.body.append(fusionLink);
+const fusionStart=startBattle;startBattle=function(n){if(S.hero==='wanxiang'&&(!wanxiangSprite.complete||!wanxiangSprite.naturalWidth)){toast('万象形象正在加载，请稍候再出战');return;}fusionStart(n);if(S.hero==='wanxiang'&&B&&!B.over){const cv=document.createElement('canvas');cv.width=cv.height=64;cv.style.cssText='width:100%;height:100%;border-radius:50%';cv.getContext('2d').drawImage(wanxiangSprite,150,0,260,260,0,0,64,64);document.querySelector('.php-face').replaceChildren(cv);}fusionLink.hidden=!!B&&!B.over;};
+const fusionEnd=endBattle;endBattle=function(win){fusionEnd(win);if(B?.over)fusionLink.hidden=false;};
+document.title='奥特曼英雄·思翰版 v1.1.0 · 万象合体';
 
 /* ---------- 启动 ---------- */
 // URL 加 #fps 可显示实时帧率(排查手机流畅度用, 默认关闭)
